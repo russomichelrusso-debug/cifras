@@ -8,6 +8,7 @@ import { renderImporter } from './views/importer.js';
 import { renderLibrary } from './views/library.js';
 import { renderSetlist, renderSetlists } from './views/setlists.js';
 import { renderSetlistSong, renderSong } from './views/song.js';
+import { renderSetlistStage, renderStage } from './views/stage.js';
 
 const VIEWS = {
   library: renderLibrary,
@@ -17,6 +18,8 @@ const VIEWS = {
   setlists: renderSetlists,
   setlist: renderSetlist,
   setlistSong: renderSetlistSong,
+  stage: renderStage,
+  setlistStage: renderSetlistStage,
   notFound: (el) => el.replaceChildren(h('div', { class: 'page' }, h('p', {}, 'Página não encontrada.'), h('a', { class: 'button', href: '#/' }, 'Ir para a biblioteca'))),
 };
 
@@ -27,7 +30,7 @@ const NAV = [
 ];
 
 // Qual item da navegação fica marcado em cada rota.
-const NAV_SECTION = { setlists: 'setlists', setlist: 'setlists', setlistSong: 'setlists', importer: 'importer' };
+const NAV_SECTION = { setlists: 'setlists', setlist: 'setlists', setlistSong: 'setlists', setlistStage: 'setlists', importer: 'importer' };
 
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 // iPadOS se apresenta como Mac; o toque denuncia.

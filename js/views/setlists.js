@@ -1,6 +1,6 @@
 // Repertórios: lista e edição (nome, ordem, tom e capo de cada música).
 
-import { navigate, setlistHash, setlistSongHash } from '../router.js';
+import { navigate, setlistHash, setlistSongHash, setlistStageHash } from '../router.js';
 import { addSongs, createSetlist, duplicateSetlist, moveItem, removeItem, updateItem } from '../setlists/model.js';
 import { deleteSetlist, getSetlist, listSetlists, saveSetlist } from '../storage/setlists.repo.js';
 import { listSongs } from '../storage/songs.repo.js';
@@ -60,6 +60,7 @@ export async function renderSetlist(container, [id]) {
   const songs = new Map((await listSongs()).map((s) => [s.id, s]));
   const list = h('ol', { class: 'setlist-items' });
   const startButton = h('a', { class: 'button button-primary' }, icon('play'), 'Começar');
+  const stageButton = h('a', { class: 'button' }, icon('stage'), 'Modo palco');
 
   // Atualiza a tela na hora e grava em fila: um salvamento antigo que termine depois
   // nunca sobrescreve uma mudança mais nova.
@@ -122,7 +123,11 @@ export async function renderSetlist(container, [id]) {
     list.replaceChildren(...setlist.items.map(itemRow));
     if (!setlist.items.length) list.append(h('li', { class: 'empty' }, 'Nenhuma música ainda. Adicione da biblioteca.'));
     startButton.hidden = !setlist.items.length;
-    if (setlist.items.length) startButton.href = setlistSongHash(setlist.id, setlist.items[0].id);
+    stageButton.hidden = !setlist.items.length;
+    if (setlist.items.length) {
+      startButton.href = setlistSongHash(setlist.id, setlist.items[0].id);
+      stageButton.href = setlistStageHash(setlist.id, setlist.items[0].id);
+    }
   }
 
   function pickSongs() {
@@ -198,7 +203,7 @@ export async function renderSetlist(container, [id]) {
         ),
       ),
       h('p', { class: 'muted small setlist-hint' }, 'O tom e o capo valem só para este repertório. A música na biblioteca não muda.'),
-      h('div', { class: 'row setlist-actions' }, startButton, h('button', { class: 'button', type: 'button', onclick: pickSongs }, icon('plus'), 'Adicionar músicas')),
+      h('div', { class: 'row setlist-actions' }, startButton, stageButton, h('button', { class: 'button', type: 'button', onclick: pickSongs }, icon('plus'), 'Adicionar músicas')),
       list,
     ),
   );

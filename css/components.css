@@ -1342,3 +1342,249 @@
   justify-content: space-between;
   margin: calc(-1 * var(--space-2)) 0 var(--space-1);
 }
+
+/* ---------- Metrônomo ---------- */
+
+.metro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.metro-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.metro-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 4.5em;
+}
+
+.metro-bpm {
+  font-size: 2.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.metro-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.metro-dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.metro-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bar-off);
+  transition: background 0.05s;
+}
+
+.metro-dot.is-accent {
+  outline: 2px solid var(--border);
+  outline-offset: 2px;
+}
+
+.metro-dot.is-on {
+  background: var(--accent);
+}
+
+.metro-actions {
+  justify-content: center;
+}
+
+.metro-play {
+  min-width: 120px;
+}
+
+.diagram-meta {
+  justify-content: center;
+}
+
+/* ---------- Palco ---------- */
+
+.stage-enter .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.stage-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  padding-left: max(var(--space-3), env(safe-area-inset-left));
+  padding-right: max(var(--space-3), env(safe-area-inset-right));
+  background: var(--surface);
+}
+
+.stage-top {
+  flex-wrap: wrap;
+  padding-top: max(var(--space-1), env(safe-area-inset-top));
+  border-bottom: 1px solid var(--border);
+}
+
+.stage-bottom {
+  justify-content: space-between;
+  padding-bottom: max(var(--space-1), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+}
+
+.stage-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stage-name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface-2);
+}
+
+.segmented-option {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmented-option[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.stage-viewport {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-4) max(var(--space-4), env(safe-area-inset-right)) var(--space-4) max(var(--space-4), env(safe-area-inset-left));
+  outline: none;
+}
+
+.stage[data-mode='pages'] .stage-viewport {
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.stage[data-mode='scroll'] .stage-viewport {
+  overflow-y: auto;
+}
+
+.stage[data-mode='pages'] .stage-flow {
+  column-fill: auto;
+}
+
+/* Nas páginas, nada se parte no meio entre colunas. */
+.stage[data-mode='pages'] :is(.mono-pair, .seg-line, .tab, .seg-chords, .mono-line) {
+  break-inside: avoid;
+}
+
+.stage[data-mode='pages'] .section-title {
+  break-after: avoid;
+}
+
+.stage-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stage-pager,
+.stage-scroller {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stage[data-mode='pages'] .stage-scroller,
+.stage[data-mode='scroll'] .stage-pager {
+  display: none;
+}
+
+.stage-page {
+  min-width: 4em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.stage-wake {
+  color: var(--muted);
+}
+
+.stage-wake[data-status='off'],
+.stage-wake[data-status='unsupported'] {
+  color: var(--warning-text);
+}
+
+.stage-song-link {
+  min-width: 80px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.stage-song-link.next {
+  text-align: right;
+}
+
+@media (max-width: 599px) {
+  .stage-tools {
+    width: 100%;
+  }
+
+  .stage-song-link {
+    min-width: 0;
+    font-size: 0.875rem;
+  }
+}
+
+.stage[data-mode='pages'] .stage-flow {
+  transition: transform 0.25s ease;
+}
+
+.stage-flow.is-instant {
+  transition: none;
+}

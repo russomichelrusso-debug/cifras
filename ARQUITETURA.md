@@ -85,13 +85,18 @@ cifras/
 │   │   ├── settings.repo.js
 │   │   └── backup.js       # exportar/importar JSON
 │   ├── audio/
-│   │   ├── metronome.js
-│   │   └── chordPlayer.js  # Karplus-Strong, toca o acorde em arpejo/rasgueado
+│   │   ├── context.js      # um AudioContext, liberado no gesto do usuário (iOS)
+│   │   ├── synth.js        # Karplus-Strong e frequências da forma (funções puras)
+│   │   ├── chordPlayer.js  # toca a forma como rasgueado
+│   │   └── metronome.js    # agendamento adiantado, tap tempo
+│   ├── stage/
+│   │   └── paging.js       # páginas em colunas e velocidade da rolagem (funções puras)
 │   ├── ui/
 │   │   ├── dom.js          # h(), ícones, toast (texto sempre via textContent)
 │   │   ├── dialog.js       # <dialog> nativo
 │   │   ├── keySelect.js
-│   │   └── chordDiagram.js # diagrama em SVG
+│   │   ├── chordDiagram.js # diagrama em SVG
+│   │   └── metronomePanel.js # metrônomo único do app + painel
 │   └── views/
 │       ├── library.js      # lista, busca, exportar/importar backup
 │       ├── song.js         # cifra, transposição, capo, fonte, simplificar; também dentro do repertório
@@ -106,7 +111,7 @@ cifras/
 │       ├── importer.js     # colar / .txt -> prévia com tom sugerido e avisos
 │       ├── setlists.js     # lista de repertórios e edição de um repertório
 │       ├── stage.js        # páginas + rolagem, wake lock, tela cheia, atalhos
-│       ├── metronome.js
+│       ├── chordPopup.js   # abre o card do acorde (tela da música e palco)
 │       └── settings.js
 ├── tests/
 │   ├── notes.test.js
@@ -118,6 +123,8 @@ cifras/
 │   ├── parser.test.js
 │   ├── ui-logic.test.js    # viewKeys, layout, backup, modelo, rotas
 │   ├── setlists.test.js
+│   ├── audio.test.js       # síntese, frequências, agendamento do metrônomo
+│   ├── stage.test.js
 │   └── fixtures/           # trechos de cifras reais coladas de sites
 └── assets/
     └── icons/
@@ -389,7 +396,34 @@ Lista ordenada de músicas, cada uma com tom e capo próprios. Funciona assim:
 - **Excluir uma música da biblioteca** também a tira dos repertórios.
 
 **Modo palco**
-Tela cheia e Wake Lock. Avanço por páginas (swipe, ou setas e espaço no laptop), com rolagem automática opcional, velocidade por música (`scrollSpeed`) e ajuste ao vivo. Seção atual destacada. Metrônomo opcional com o `bpm` da música.
+Botão "Palco" na tela da música e "Modo palco" no repertório. O palco ocupa a tela inteira e tem:
+
+- **Páginas:** a cifra flui em colunas da altura da tela; duas colunas lado a lado em telas a partir de 900 px. Nada se parte no meio entre colunas (par acorde+letra, tablatura). Avança-se tocando na borda direita (30% da largura), arrastando para o lado, pelas setas ou por um pedal que mande PageDown. No fim da última página, "próxima" leva à música seguinte do repertório.
+- **Rolagem:** automática, com velocidade de 1 a 10 (12 a 44 px/s), salva na música (`scrollSpeed`) e ajustável ao vivo; para sozinha no fim.
+- **Tela sempre acesa** (Wake Lock), renovada quando o app volta ao primeiro plano; sem suporte, um aviso pede para aumentar o bloqueio automático do aparelho.
+- **Tela cheia** quando o navegador permite (o iPhone não permite em páginas).
+- **Tom e tamanho da letra** ajustáveis no palco; no repertório, o tom fica salvo no item.
+- **Metrônomo** com o `bpm` da música.
+- **Acorde:** tocar no acorde abre o card, como na tela da música.
+
+Atalhos de teclado no palco:
+
+| Tecla | Ação |
+|---|---|
+| → ↓ PageDown | próxima página (na rolagem: desce uma tela) |
+| ← ↑ PageUp | página anterior |
+| Espaço | próxima página; na rolagem, rolar/pausar |
+| + / − | meio tom acima / abaixo |
+| F | tela cheia |
+| M | metrônomo liga/desliga |
+| N / P | próxima / anterior música do repertório |
+| Esc | sair do palco |
+
+**Metrônomo**
+Botão na tela da música e no palco. Andamento de 30 a 260 bpm (−5, −1, +1, +5 e controle deslizante), tap tempo, 2/3/4/6 batidas por compasso com a primeira acentuada, e luz da batida. O andamento fica salvo na música (`bpm`). Ao sair da tela, ele para. O agendamento é adiantado: o timer acorda a cada 25 ms e marca no relógio do áudio as batidas dos próximos 120 ms, então atrasos do timer não atrasam o som.
+
+**Som do acorde**
+Botão "Ouvir" no diagrama: toca a forma mostrada como rasgueado (da corda grave para a aguda, 30 ms entre cordas), com o capo somado. O som é sintetizado por Karplus-Strong (ruído numa linha de atraso do tamanho do período, filtrada a cada volta), sem arquivos de áudio.
 
 **Backup**
 Exportar gera um `.json` com músicas, repertórios e configurações. Importar mescla por `id`, e o registro com `updatedAt` mais recente vence. Na primeira execução, o app chama `navigator.storage.persist()` e, se não estiver instalado, mostra o aviso para instalar.
@@ -443,6 +477,11 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 | D43 | Formas em módulo JS (`shapes.js`) + pestanas geradas por moldes, no lugar de `shapes.json` com 60 a 80 formas | Cobre qualquer tônica e tipo sem digitar centenas de formas, sem `fetch` no carregamento, e cada forma é testada |
 | D44 | Substituições fora do campo grafadas pelo intervalo a partir do acorde | O sétimo grau de A7 é C#° (sensível de Ré), não Db° |
 | D45 | Laptop: detalhe do acorde num painel lateral fixo | Dá para ler a análise sem tirar a cifra da tela |
+| D46 | Páginas do palco com colunas CSS e deslocamento por `transform` | Quebra natural sem calcular altura de linha; o scroll pararia no fim e desalinharia a última página |
+| D47 | Duas colunas por tela a partir de 900 px | Tablet deitado e laptop mostram o dobro de cifra por página |
+| D48 | "Próxima" no fim da última página vai para a próxima música do repertório | Um pedal só basta para o culto ou show inteiro |
+| D49 | Barras do palco fixas (sem esconder sozinhas) | Esconder mudaria a altura das colunas e o número de páginas no meio da música |
+| D50 | Andamento e velocidade de rolagem salvos na música; metrônomo para ao sair da tela | Cada música tem seu andamento; som que continua em outra tela confunde |
 
 **Fora da v1:** afinador, OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
 
@@ -457,7 +496,7 @@ Repertórios com tom e capo por música, navegação entre as músicas e duplica
 **Fase 3: acordes e análise** (feita)
 `scales`, `harmony` (testes antes da implementação), biblioteca de formas com pestanas geradas, card rápido, detalhe e layout por aparelho.
 
-**Fase 4: palco e áudio**
+**Fase 4: palco e áudio** (feita)
 Páginas e rolagem, wake lock, tela cheia, atalhos, metrônomo, `chordPlayer`, simplificar acordes.
 
 **Fase 5: PWA final**

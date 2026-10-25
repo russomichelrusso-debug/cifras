@@ -50,6 +50,10 @@ const ICONS = {
   down: 'M6 9l6 6 6-6',
   play: 'M7 5l12 7-12 7z',
   copy: 'M9 9h10v10H9zM5 15V5h10',
+  sound: 'M4 9h4l5-4v14l-5-4H4zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12',
+  stage: 'M4 4h16v12H4zM8 20h8M12 16v4',
+  pause: 'M8 5v14M16 5v14',
+  metronome: 'M9 3h6l4 18H5zM12 17l5-10',
 };
 
 export function icon(name) {

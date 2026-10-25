@@ -2,18 +2,20 @@
 // Usada direto da biblioteca (tom e capo salvos na música) e dentro de um repertório
 // (tom e capo salvos no item do repertório, sem mexer na música).
 
-import { navigate, setlistSongHash } from '../router.js';
+import { navigate, setlistSongHash, setlistStageHash, stageHash } from '../router.js';
 import { addSongs, createSetlist, neighbors, updateItem } from '../setlists/model.js';
 import { clampCapo } from '../songs/model.js';
 import { parseSong } from '../songs/parser.js';
 import { getSetlist, listSetlists, removeSongFromSetlists, saveSetlist } from '../storage/setlists.repo.js';
 import { deleteSong, getSong, saveSong } from '../storage/songs.repo.js';
 import { getSettingsState, updateSettings } from '../store.js';
-import { shownChord, viewKeys } from '../theory/notation.js';
+import { viewKeys } from '../theory/notation.js';
 import { formatKey, intervalBetween, transposeKey } from '../theory/transpose.js';
 import { openDialog } from '../ui/dialog.js';
+import { metronome, onMetronomeState, openMetronomeDialog, stopMetronome } from '../ui/metronomePanel.js';
 import { h, icon, toast } from '../ui/dom.js';
-import { chordInfo, renderChordCard, renderChordDetail } from './chordInfo.js';
+import { renderChordDetail } from './chordInfo.js';
+import { chordInfoFor, createChordDialog } from './chordPopup.js';
 import { mountSongBody } from './songBody.js';
 
 const LAPTOP = window.matchMedia('(min-width: 1024px)');
@@ -35,6 +37,7 @@ const notFound = (container, text, href, label) =>
  *   subtitle?: string,                 // ex.: "Culto domingo · 2 de 5"
  *   footer?: Node,                     // ex.: anterior / próxima do repertório
  *   menuItems?: Node[],
+ *   stageHref?: string,                // abre o modo palco
  * }
  */
 function mountSongPage(container, song, ctx) {
@@ -46,47 +49,23 @@ function mountSongPage(container, song, ctx) {
   const view = () => ({ ...song, ...state });
   const bodyEl = h('div', { class: 'song-scroll' });
   const panel = h('aside', { class: 'chord-panel', 'aria-label': 'Acorde', hidden: true });
-  let dialog = null;
+  const chordDialog = createChordDialog();
 
   // Toque no acorde: celular e tablet abrem o card (e o detalhe no mesmo diálogo); laptop usa o painel lateral.
   function openChord(item) {
-    if (!item.chord) return;
-    const keys = viewKeys(view());
-    const settingsNow = getSettingsState();
-    const shapeChord = shownChord(item.chord, { shift: keys.shift, key: keys.shapes, simplify: settingsNow.simplifyChords });
-    const sameAsText = keys.shift === 0 && !settingsNow.simplifyChords;
-    const info = chordInfo({
-      shapeChord,
-      key: state.currentKey,
-      capo: state.capo,
-      siteDiagram: sameAsText ? parsed.diagrams.find((d) => d.name === item.text) : null,
-      notation: settingsNow.chordNotation,
-      noteNaming: settingsNow.noteNaming,
-    });
-    if (LAPTOP.matches) {
-      panel.hidden = false;
-      page.classList.add('has-panel');
-      panel.replaceChildren(
-        h('div', { class: 'chord-panel-bar' }, h('span', { class: 'muted small' }, 'Acorde'), h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Fechar painel', onclick: closePanel }, icon('close'))),
-        renderChordDetail(info),
-      );
-      panel.scrollTop = 0;
+    const info = chordInfoFor(item, { song, state, parsed });
+    if (!info) return;
+    if (!LAPTOP.matches) {
+      chordDialog.open(info);
       return;
     }
-    dialog?.close();
-    // O evento "close" chega depois: cada diálogo só limpa a referência se ainda for o atual.
-    const d = openDialog({ title: `Acorde ${info.name}`, content: [], className: 'chord-dialog', showTitle: false, onClose: () => {
-      if (dialog === d) dialog = null;
-    } });
-    dialog = d;
-    const showCard = () => {
-      d.element.classList.remove('is-detail');
-      d.setContent(renderChordCard(info, { onDetails: () => {
-        d.element.classList.add('is-detail');
-        d.setContent(renderChordDetail(info, { onBack: showCard }));
-      } }));
-    };
-    showCard();
+    panel.hidden = false;
+    page.classList.add('has-panel');
+    panel.replaceChildren(
+      h('div', { class: 'chord-panel-bar' }, h('span', { class: 'muted small' }, 'Acorde'), h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Fechar painel', onclick: closePanel }, icon('close'))),
+      renderChordDetail(info),
+    );
+    panel.scrollTop = 0;
   }
 
   function closePanel() {
@@ -134,6 +113,25 @@ function mountSongPage(container, song, ctx) {
     persist();
   }
 
+  // Metrônomo: o andamento fica salvo na música.
+  let bpm = song.bpm ?? settings.metronome.bpm;
+  const bpmLabel = h('span', {});
+  const refreshBpm = () => {
+    bpmLabel.textContent = `${bpm} bpm${metronome.running ? ' ●' : ''}`;
+  };
+  const offMetro = onMetronomeState(refreshBpm);
+  const metroButton = h('button', { class: 'button button-small', type: 'button', 'aria-label': 'Metrônomo', onclick: () => openMetronomeDialog({
+    bpm,
+    beatsPerBar: settings.metronome.beatsPerBar,
+    onChange: async (v) => {
+      bpm = v.bpm;
+      refreshBpm();
+      updateSettings({ metronome: { bpm: v.bpm, beatsPerBar: v.beatsPerBar } });
+      await saveSong({ ...((await getSong(song.id)) ?? song), bpm });
+    },
+  }) }, icon('metronome'), bpmLabel);
+  refreshBpm();
+
   function setFont(delta) {
     fontSize = Math.min(32, Math.max(12, fontSize + delta));
     updateSettings({ defaultFontSize: fontSize });
@@ -171,6 +169,7 @@ function mountSongPage(container, song, ctx) {
           h('h1', {}, song.title),
           song.artist ? h('p', { class: 'muted' }, song.artist) : null,
         ),
+        ctx.stageHref ? h('a', { class: 'button button-small stage-enter', href: ctx.stageHref }, icon('stage'), 'Palco') : null,
         menu,
       ),
       h(
@@ -184,6 +183,7 @@ function mountSongPage(container, song, ctx) {
           h('button', { class: 'icon-button text-button', type: 'button', 'aria-label': 'Diminuir letra', onclick: () => setFont(-2) }, 'A−'),
           h('button', { class: 'icon-button text-button', type: 'button', 'aria-label': 'Aumentar letra', onclick: () => setFont(2) }, 'A+')),
         h('label', { class: 'toggle' }, simplifyToggle, 'Simplificar'),
+        metroButton,
       ),
       h('div', { class: 'song-main' }, h('div', { class: 'song-column' }, bodyEl, ctx.footer ?? null), panel),
     );
@@ -204,7 +204,9 @@ function mountSongPage(container, song, ctx) {
   refreshControls();
 
   return () => {
-    dialog?.close();
+    chordDialog.close();
+    offMetro();
+    stopMetronome();
     body.destroy();
     if (saveTimer) {
       clearTimeout(saveTimer);
@@ -253,6 +255,7 @@ export async function renderSong(container, [id]) {
       latest = await saveSong({ ...latest, ...state });
     },
     back: { href: '#/', label: 'Voltar à biblioteca' },
+    stageHref: stageHash(song.id),
     menuItems: [
       h('button', { class: 'menu-row menu-link', type: 'button', onclick: () => addToSetlistDialog(latest) }, icon('list'), 'Adicionar ao repertório'),
       h('a', { class: 'menu-row menu-link', href: `#/musica/${encodeURIComponent(song.id)}/editar` }, icon('edit'), 'Editar cifra'),
@@ -284,6 +287,7 @@ export async function renderSetlistSong(container, [setlistId, itemId]) {
       setlist = await saveSetlist(updateItem(setlist, itemId, { key: state.currentKey, capo: state.capo }));
     },
     back: { href: setlistHref, label: 'Voltar ao repertório' },
+    stageHref: setlistStageHash(setlist.id, itemId),
     subtitle: `${setlist.name} · ${index + 1} de ${total}`,
     footer: h('nav', { class: 'setlist-nav', 'aria-label': 'Músicas do repertório' }, navButton(prev, '‹ Anterior', 'prev'), navButton(next, 'Próxima ›', 'next')),
   });

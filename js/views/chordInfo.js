@@ -1,12 +1,13 @@
 // Card rápido e detalhe do acorde (diagrama + análise harmônica), como nas imagens de referência.
 
+import { playShape } from '../audio/chordPlayer.js';
 import { lookupShapes } from '../chordlib/lookup.js';
 import { formatChord } from '../theory/chords.js';
 import { FUNCTION_NAMES, FUNCTION_TEXT, KIND_TEXT, analyzeChord, harmonicField, keyName } from '../theory/harmony.js';
 import { pcOf } from '../theory/notes.js';
 import { formatKey, transposeChord } from '../theory/transpose.js';
 import { chordDiagram } from '../ui/chordDiagram.js';
-import { append, h, icon } from '../ui/dom.js';
+import { append, h, icon, toast } from '../ui/dom.js';
 import { keySelect } from '../ui/keySelect.js';
 
 const SOURCE_LABEL = { open: 'Posição aberta', barre: 'Pestana', site: 'Desenho do site' };
@@ -68,6 +69,13 @@ function diagramCarousel(info, { compact = false } = {}) {
   let index = 0;
   const figure = h('div', { class: 'diagram-figure' });
   const counter = h('span', { class: 'muted small', 'aria-live': 'polite' });
+  const listen = h('button', { class: 'button button-small', type: 'button', onclick: () => {
+    try {
+      playShape(shapes[index].frets, { capo: info.capo });
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+  } }, icon('sound'), 'Ouvir');
   const prev = h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Forma anterior', onclick: () => show(index - 1) }, icon('back'));
   const next = h('button', { class: 'icon-button icon-flip', type: 'button', 'aria-label': 'Próxima forma', onclick: () => show(index + 1) }, icon('back'));
   function show(i) {
@@ -78,7 +86,7 @@ function diagramCarousel(info, { compact = false } = {}) {
   }
   append(wrap, [
     h('div', { class: 'diagram-row' }, shapes.length > 1 ? prev : null, figure, shapes.length > 1 ? next : null),
-    counter,
+    h('div', { class: 'row diagram-meta' }, counter, listen),
     approx ? h('p', { class: 'note small' }, approx) : null,
     bassNote ? h('p', { class: 'muted small' }, `Baixo: toque ${bassNote} na corda mais grave.`) : null,
     shapes[0].source === 'site' ? h('p', { class: 'muted small' }, 'O desenho do site não diferencia corda solta de abafada (?).') : null,

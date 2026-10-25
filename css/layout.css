@@ -122,3 +122,19 @@ body[data-route='setlistSong'] .app-content {
 body:not([data-route='library']) .install-hint {
   display: none;
 }
+
+/* Modo palco: tela inteira, sem navegação do app. */
+body[data-route='stage'] .app-nav,
+body[data-route='setlistStage'] .app-nav {
+  display: none;
+}
+
+body[data-route='stage'] .app,
+body[data-route='setlistStage'] .app {
+  display: block;
+}
+
+body[data-route='stage'] .app-content,
+body[data-route='setlistStage'] .app-content {
+  padding: 0;
+}

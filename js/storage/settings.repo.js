@@ -10,6 +10,8 @@ export const DEFAULT_SETTINGS = {
   defaultFontSize: 18,
   layoutMode: 'auto', // auto | mono | segments
   stageScrollSpeed: 2,
+  stageMode: 'pages', // pages | scroll
+  stageFontSize: 24,
   showAnalysis: true,
   metronome: { bpm: 80, beatsPerBar: 4 },
   persistRequested: false,

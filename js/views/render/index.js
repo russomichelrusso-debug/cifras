@@ -49,9 +49,12 @@ function renderCommonBlock(block) {
   }
 }
 
-/** Celular: segmentos. Tablet e laptop: monoespaçado, se a linha mais longa couber. */
-export function chooseMode(parsed, { preference = 'auto', containerWidth, charWidth, chordText }) {
+/**
+ * Celular: segmentos. Tablet e laptop: monoespaçado, se a linha mais longa couber.
+ * `isPhone` vem à parte porque no palco a largura medida é a da coluna, não a da tela.
+ */
+export function chooseMode(parsed, { preference = 'auto', containerWidth, charWidth, chordText, isPhone = containerWidth < PHONE_MAX_WIDTH }) {
   if (preference === 'mono' || preference === 'segments') return preference;
-  if (containerWidth < PHONE_MAX_WIDTH) return 'segments';
+  if (isPhone) return 'segments';
   return monoWidth(parsed, chordText) * charWidth <= containerWidth ? 'mono' : 'segments';
 }

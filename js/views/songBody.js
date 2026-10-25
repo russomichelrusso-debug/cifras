@@ -5,7 +5,9 @@ import { h } from '../ui/dom.js';
 import { chooseMode, renderSongBody } from './render/index.js';
 
 /**
- * opts: { parsed, originalKey, currentKey, capo, notation, simplify, layoutMode, fontSize, onChord }
+ * opts: { parsed, originalKey, currentKey, capo, sourceCapo, notation, simplify, layoutMode, fontSize, onChord,
+ *         measureWidth?() -> número,   // largura para escolher o modo (no palco, a da coluna)
+ *         isPhone?, onDraw?() }       // onDraw: depois de cada desenho (o palco recalcula as páginas)
  * Retorna { update(patch), destroy(), mode() }.
  */
 export function mountSongBody(container, initial) {
@@ -20,9 +22,11 @@ export function mountSongBody(container, initial) {
     const chordText = (item) => displayChord(item.chord, { shift: keys.shift, key: keys.shapes, notation: opts.notation, simplify: opts.simplify });
     container.style.setProperty('--song-font', `${opts.fontSize}px`);
     const charWidth = probe.getBoundingClientRect().width / 10 || opts.fontSize * 0.6;
-    const mode = chooseMode(opts.parsed, { preference: opts.layoutMode, containerWidth: container.clientWidth, charWidth, chordText });
+    const width = opts.measureWidth?.() ?? container.clientWidth;
+    const mode = chooseMode(opts.parsed, { preference: opts.layoutMode, containerWidth: width, charWidth, chordText, isPhone: opts.isPhone });
     currentMode = mode;
     host.replaceChildren(renderSongBody(opts.parsed, { mode, chordText, onChord: opts.onChord }));
+    opts.onDraw?.();
   }
 
   let lastWidth = 0;
