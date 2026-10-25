@@ -18,6 +18,15 @@
   --warning-text: #6b4a00;
   --danger: #b42318;
   --focus: #2350d8;
+  --fn-tonic-bg: #e3f4e8;
+  --fn-tonic-text: #1d6b3a;
+  --fn-sub-bg: #fdf1cf;
+  --fn-sub-text: #8a5a00;
+  --fn-dom-bg: #fde3e0;
+  --fn-dom-text: #a02518;
+  --bar-off: #e2ddd1;
+  --bar-stability: #2f9e5b;
+  --bar-tension: #d64535;
 
   --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Roboto Mono', 'Liberation Mono', monospace;
@@ -54,6 +63,15 @@
     --warning-text: #f3d48a;
     --danger: #ff8a7a;
     --focus: #9cb3ff;
+    --fn-tonic-bg: #1d3526;
+    --fn-tonic-text: #8fdaa9;
+    --fn-sub-bg: #3a3020;
+    --fn-sub-text: #f3d48a;
+    --fn-dom-bg: #3d2220;
+    --fn-dom-text: #ffa598;
+    --bar-off: #353a45;
+    --bar-stability: #5cc283;
+    --bar-tension: #ff7a6a;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
   }
 }
@@ -76,5 +94,14 @@
   --warning-text: #f3d48a;
   --danger: #ff8a7a;
   --focus: #9cb3ff;
+  --fn-tonic-bg: #1d3526;
+  --fn-tonic-text: #8fdaa9;
+  --fn-sub-bg: #3a3020;
+  --fn-sub-text: #f3d48a;
+  --fn-dom-bg: #3d2220;
+  --fn-dom-text: #ffa598;
+  --bar-off: #353a45;
+  --bar-stability: #5cc283;
+  --bar-tension: #ff7a6a;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
 }

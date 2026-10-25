@@ -9,11 +9,14 @@ import { parseSong } from '../songs/parser.js';
 import { getSetlist, listSetlists, removeSongFromSetlists, saveSetlist } from '../storage/setlists.repo.js';
 import { deleteSong, getSong, saveSong } from '../storage/songs.repo.js';
 import { getSettingsState, updateSettings } from '../store.js';
-import { viewKeys } from '../theory/notation.js';
+import { shownChord, viewKeys } from '../theory/notation.js';
 import { formatKey, intervalBetween, transposeKey } from '../theory/transpose.js';
 import { openDialog } from '../ui/dialog.js';
 import { h, icon, toast } from '../ui/dom.js';
+import { chordInfo, renderChordCard, renderChordDetail } from './chordInfo.js';
 import { mountSongBody } from './songBody.js';
+
+const LAPTOP = window.matchMedia('(min-width: 1024px)');
 
 const LAYOUTS = [
   ['auto', 'Automático'],
@@ -42,6 +45,54 @@ function mountSongPage(container, song, ctx) {
 
   const view = () => ({ ...song, ...state });
   const bodyEl = h('div', { class: 'song-scroll' });
+  const panel = h('aside', { class: 'chord-panel', 'aria-label': 'Acorde', hidden: true });
+  let dialog = null;
+
+  // Toque no acorde: celular e tablet abrem o card (e o detalhe no mesmo diálogo); laptop usa o painel lateral.
+  function openChord(item) {
+    if (!item.chord) return;
+    const keys = viewKeys(view());
+    const settingsNow = getSettingsState();
+    const shapeChord = shownChord(item.chord, { shift: keys.shift, key: keys.shapes, simplify: settingsNow.simplifyChords });
+    const sameAsText = keys.shift === 0 && !settingsNow.simplifyChords;
+    const info = chordInfo({
+      shapeChord,
+      key: state.currentKey,
+      capo: state.capo,
+      siteDiagram: sameAsText ? parsed.diagrams.find((d) => d.name === item.text) : null,
+      notation: settingsNow.chordNotation,
+      noteNaming: settingsNow.noteNaming,
+    });
+    if (LAPTOP.matches) {
+      panel.hidden = false;
+      page.classList.add('has-panel');
+      panel.replaceChildren(
+        h('div', { class: 'chord-panel-bar' }, h('span', { class: 'muted small' }, 'Acorde'), h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Fechar painel', onclick: closePanel }, icon('close'))),
+        renderChordDetail(info),
+      );
+      panel.scrollTop = 0;
+      return;
+    }
+    dialog?.close();
+    // O evento "close" chega depois: cada diálogo só limpa a referência se ainda for o atual.
+    const d = openDialog({ title: `Acorde ${info.name}`, content: [], className: 'chord-dialog', showTitle: false, onClose: () => {
+      if (dialog === d) dialog = null;
+    } });
+    dialog = d;
+    const showCard = () => {
+      d.element.classList.remove('is-detail');
+      d.setContent(renderChordCard(info, { onDetails: () => {
+        d.element.classList.add('is-detail');
+        d.setContent(renderChordDetail(info, { onBack: showCard }));
+      } }));
+    };
+    showCard();
+  }
+
+  function closePanel() {
+    panel.hidden = true;
+    page.classList.remove('has-panel');
+  }
   const keyLabel = h('span', { class: 'stepper-value', 'aria-live': 'polite' });
   const capoLabel = h('span', { class: 'stepper-value', 'aria-live': 'polite' });
   const shapesNote = h('span', { class: 'shapes-note' });
@@ -106,8 +157,7 @@ function mountSongPage(container, song, ctx) {
     h('div', { class: 'menu-panel' }, h('label', { class: 'menu-row' }, 'Exibição', layoutSelect), ctx.menuItems ?? []),
   );
 
-  container.replaceChildren(
-    h(
+  const page = h(
       'div',
       { class: 'page page-song' },
       h(
@@ -135,10 +185,9 @@ function mountSongPage(container, song, ctx) {
           h('button', { class: 'icon-button text-button', type: 'button', 'aria-label': 'Aumentar letra', onclick: () => setFont(2) }, 'A+')),
         h('label', { class: 'toggle' }, simplifyToggle, 'Simplificar'),
       ),
-      bodyEl,
-      ctx.footer ?? null,
-    ),
-  );
+      h('div', { class: 'song-main' }, h('div', { class: 'song-column' }, bodyEl, ctx.footer ?? null), panel),
+    );
+  container.replaceChildren(page);
 
   const body = mountSongBody(bodyEl, {
     parsed,
@@ -150,10 +199,12 @@ function mountSongPage(container, song, ctx) {
     simplify: settings.simplifyChords,
     layoutMode: settings.layoutMode,
     fontSize,
+    onChord: openChord,
   });
   refreshControls();
 
   return () => {
+    dialog?.close();
     body.destroy();
     if (saveTimer) {
       clearTimeout(saveTimer);

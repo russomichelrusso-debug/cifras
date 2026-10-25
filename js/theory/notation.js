@@ -22,11 +22,16 @@ export function viewKeys({ originalKey, currentKey, capo = 0, sourceCapo = 0 }) 
 /** Tom dos acordes escritos no texto. */
 export const writtenKey = (song) => transposeKey(song.originalKey, -(song.sourceCapo ?? 0));
 
-/** Texto do acorde para exibir. `chord` null = N.C. */
-export function displayChord(chord, { shift = 0, key, notation = 'br', simplify = false } = {}) {
-  if (!chord) return 'N.C.';
+/** Acorde como aparece na tela (transposto, simplificado). `chord` null = N.C. */
+export function shownChord(chord, { shift = 0, key, simplify = false } = {}) {
+  if (!chord) return null;
   // Com o tom, regrafa mesmo sem transpor (A# vira Bb em F).
-  let c = key ? transposeChord(chord, shift, key) : chord;
-  if (simplify) c = simplifyChord(c);
-  return formatChord(c, { notation });
+  const c = key ? transposeChord(chord, shift, key) : chord;
+  return simplify ? simplifyChord(c) : c;
+}
+
+/** Texto do acorde para exibir. */
+export function displayChord(chord, { notation = 'br', ...opts } = {}) {
+  const c = shownChord(chord, opts);
+  return c ? formatChord(c, { notation }) : 'N.C.';
 }

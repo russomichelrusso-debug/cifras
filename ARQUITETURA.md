@@ -71,8 +71,8 @@ cifras/
 │   │   ├── keyDetect.js    # inferência do tom a partir dos acordes
 │   │   └── transpose.js    # transposição e grafia pela armadura
 │   ├── chordlib/
-│   │   ├── shapes.json     # formas com variações por acorde
-│   │   └── lookup.js
+│   │   ├── shapes.js       # formas abertas e com baixo, digitadas à mão
+│   │   └── lookup.js       # pestanas geradas (formas de E e de A), busca e aproximação
 │   ├── setlists/
 │   │   └── model.js        # repertório: adicionar, mover, tom/capo por item (funções puras)
 │   ├── songs/
@@ -90,7 +90,8 @@ cifras/
 │   ├── ui/
 │   │   ├── dom.js          # h(), ícones, toast (texto sempre via textContent)
 │   │   ├── dialog.js       # <dialog> nativo
-│   │   └── keySelect.js
+│   │   ├── keySelect.js
+│   │   └── chordDiagram.js # diagrama em SVG
 │   └── views/
 │       ├── library.js      # lista, busca, exportar/importar backup
 │       ├── song.js         # cifra, transposição, capo, fonte, simplificar; também dentro do repertório
@@ -100,8 +101,7 @@ cifras/
 │       │   ├── layout.js   # colunas e palavras, sem DOM (testado)
 │       │   ├── monospace.js
 │       │   └── segments.js
-│       ├── chordCard.js    # card rápido
-│       ├── chordDetail.js  # análise completa
+│       ├── chordInfo.js    # card rápido e detalhe do acorde (diagrama + análise)
 │       ├── editor.js       # textarea sobre o texto bruto
 │       ├── importer.js     # colar / .txt -> prévia com tom sugerido e avisos
 │       ├── setlists.js     # lista de repertórios e edição de um repertório
@@ -112,6 +112,7 @@ cifras/
 │   ├── notes.test.js
 │   ├── chords.test.js
 │   ├── harmony.test.js
+│   ├── chordlib.test.js    # cada forma toca só notas do acorde
 │   ├── keyDetect.test.js
 │   ├── transpose.test.js
 │   ├── parser.test.js
@@ -272,18 +273,19 @@ Entrada: tonalidade (`{ tonic, mode }`) e acorde.
    - dominante secundária: acorde maior ou com 7 que resolve uma quinta abaixo num grau do campo (`A7` em C = `V7/ii`)
    - empréstimo modal do homônimo (`Bb` em C = `bVII`, `Fm` em C = `iv`)
    - senão: "fora do campo"
-4. **Acordes com baixo**: `C/E` = grau I em 1ª inversão; `C/G` = 2ª inversão. Baixo fora do acorde (`D/C`) aparece como "baixo pedal / passagem".
+   - o I maior em tom menor (picarda) é empréstimo, não V/iv; com sétima (`A7` em Am) é V7/iv
+4. **Acordes com baixo**: `C/E` = grau I em 1ª inversão; `C/G` = 2ª inversão; `G7/F` = 3ª inversão. Baixo fora do acorde (`D/C`) aparece como "baixo pedal / passagem". O grau vem do acorde, não do baixo.
 5. **Substituições**:
-   - relativo (F → Dm)
-   - antirrelativo (F → Am)
-   - para dominantes: substituto tritonal (G7 → Db7) e vii° (G7 → B°)
+   - relativo (F → Dm) e antirrelativo (F → Am), só quando estão no campo
+   - para dominantes (V e dominantes secundárias): substituto trítono (G7 → Db7) e sétimo grau (G7 → B°), mesmo fora do campo
+   - fora do campo, a grafia segue o intervalo a partir do acorde: o sétimo grau de A7 é `C#°` (sensível de Ré), não `Db°`
    - aviso fixo: "Confira a melodia e a condução das vozes antes de trocar."
 6. **Notas do acorde** com o intervalo: Fundamental, Terça maior/menor, Quinta justa/diminuta/aumentada, Sétima, extensões.
 7. **Caráter sonoro**: maior ou menor, até duas tags e barras de 0 a 5 para estabilidade e tensão (tabela abaixo).
 8. **Dica rápida**: frase por grau, com o nome do acorde interpolado.
 9. **Lápis do tom** na tela de detalhe: muda só a tonalidade da análise (hipótese local, útil em modulação). Não altera a música.
 
-Tabela de caráter (proposta, para revisão):
+Tabela de caráter, tom maior (o IV segue a imagem de referência):
 
 | Grau | Estabilidade | Tensão | Tags | Dica |
 |---|---|---|---|---|
@@ -294,10 +296,25 @@ Tabela de caráter (proposta, para revisão):
 | V | 1 | 4 | Tensão, Pede resolução | `{X}` pede para voltar ao I. |
 | vi | 4 | 1 | Repouso, Melancolia | `{X}` é o repouso com cara menor. |
 | vii° | 0 | 5 | Tensão máxima, Instável | `{X}` resolve com força no I. |
-| V7/x | 1 | 4 | Tensão, Direção | `{X}` aponta para `{alvo}`. |
-| empréstimo | 2 | 2 | Cor, Surpresa | `{X}` vem do tom homônimo e muda a cor. |
+| V7/x | 1 | 4 | Tensão, Direção | `{X}` aponta para `{alvo}`: resolva nele. |
+| empréstimo | 2 | 2 | Cor, Surpresa | `{X}` vem de `{C menor}` e muda a cor da música. |
+| fora do campo | 2 | 3 | Surpresa, Fora do tom | `{X}` não pertence a `{C maior}`: confira se a música mudou de tom. |
 
-As tabelas ficam em `theory/harmony.js` como constantes.
+Tom menor:
+
+| Grau | Estabilidade | Tensão | Tags | Dica |
+|---|---|---|---|---|
+| i | 5 | 0 | Repouso, Resolução | `{X}` é a casa: tudo resolve aqui. |
+| ii° | 1 | 4 | Tensão, Preparação | `{X}` prepara o V com um tom sombrio. |
+| III | 4 | 1 | Repouso suave, Luz | `{X}` é o relativo maior: um respiro claro. |
+| iv | 3 | 3 | Movimento, Melancolia | `{X}` afasta da tônica com peso. |
+| v | 2 | 2 | Movimento, Suave | `{X}` prepara a volta sem tensão forte. |
+| V (harmônica) | 1 | 4 | Tensão, Pede resolução | `{X}` pede para voltar ao i. |
+| VI | 3 | 2 | Movimento, Cor | `{X}` abre espaço e cor antes da volta. |
+| VII | 2 | 3 | Movimento, Preparação | `{X}` costuma levar ao III ou de volta ao i. |
+| vii° (harmônica) | 0 | 5 | Tensão máxima, Instável | `{X}` resolve com força no i. |
+
+Os textos ficam em `theory/harmony.js` como constantes, para revisão fácil.
 
 ## 8. Detecção de tom e grafia
 
@@ -310,16 +327,22 @@ As tabelas ficam em `theory/harmony.js` como constantes.
   A prévia mostra os 3 tons mais prováveis para você escolher. Nos trechos de teste, o primeiro colocado acerta os 8 casos sem ambiguidade. Os casos ambíguos (Cat's in the Cradle, Wish You Were Here) ficam entre os 3 primeiros.
 - **"Tom:" do site**: aparece só como informação. Nas cifras de teste ele diverge dos acordes escritos em 4 de 12, porque o site informa o tom da gravação (afinação meio tom abaixo, capo). Exemplos: Folsom Prison Blues diz `F`, mas os acordes estão em `E`; The Wind Cries Mary diz `C`, mas está em `F`.
 - **Grafia ao transpor**: segue a armadura do tom de destino (tons com bemol usam `Bb`, `Eb`; tons com sustenido usam `F#`, `C#`). Acordes fora do campo são grafados pelo grau (em E, `bVII` = `D`, não `C##`).
-- **Ponto aberto:** padrão entre `F#` e `Gb` (proposta: `F#` maior e `Eb` menor, que são os mais comuns no violão).
+- **Tônica com enarmonia:** `F#` maior e `Eb` menor, os mais comuns no violão.
 
 ## 9. Diagramas de acorde
 
-Cada acorde tem uma ou mais formas, alternadas com setas:
+Cada acorde tem uma ou mais formas, alternadas com setas. As formas vêm de três lugares, nesta ordem:
 
-```json
-"F": [
-  { "frets": [1,3,3,2,1,1], "fingers": [1,3,4,2,1,1], "barre": { "fret": 1, "from": 6, "to": 1 }, "baseFret": 1 },
-  { "frets": ["x","x",3,2,1,1], "fingers": [null,null,3,2,1,1], "barre": { "fret": 1, "from": 2, "to": 1 }, "baseFret": 1 }
+1. **Formas abertas e com baixo** digitadas à mão em `chordlib/shapes.js` (C, Am, D/F#, G/B...).
+2. **Pestanas geradas** em `chordlib/lookup.js` a partir de moldes móveis nas formas de E (fundamental na 6ª corda) e de A (fundamental na 5ª). Cobrem as 12 tônicas em 22 tipos: maior, menor, 7, m7, 7M, 4, 7(4), m7(b5), °7, °, +, 6, m6, 7(9), m7(9), 7(#9), 7(b9), 7M(9), (9), m(9), sus2 e 5. Os dedos seguem a pestana: casa +1 → dedo 2, casa +2 → dedos 3 e 4.
+3. **Reserva**: o diagrama do site (quando a cifra trouxe um com o mesmo nome) e, por último, a forma do acorde mais simples, com aviso ("Forma de C7 (sem a 9ª, a 13ª)").
+
+Um teste confere, nota por nota, que cada forma toca só notas do acorde e inclui a fundamental, a terça (ou a suspensão) e a sétima.
+
+```js
+F: [
+  { frets: [1, 3, 3, 2, 1, 1], fingers: [1, 3, 4, 2, 1, 1], barre: { fret: 1, from: 6, to: 1 } },
+  { frets: ['x', 'x', 3, 2, 1, 1], fingers: [null, null, 3, 2, 1, 1], barre: { fret: 1, from: 2, to: 1 } },
 ]
 ```
 
@@ -334,7 +357,14 @@ Quando o acorde não está na biblioteca e a cifra importada trouxe o diagrama d
 
 Acordes com baixo têm forma própria quando cadastrada. Se não houver, usa a forma do acorde sem baixo e indica o baixo em texto. Acordes sem forma cadastrada mostram diagrama vazio com aviso. Com "Simplificar acordes" ligado, o diagrama usa a forma do acorde simplificado.
 
-Escopo inicial: as tríades e tétrades mais usadas em louvor e MPB, além dos acordes com baixo mais comuns (`C/E`, `C/G`, `D/F#`, `G/B`, `A/C#`, `E/G#`, `F/A`).
+Acordes com baixo digitados: `C/E`, `C/G`, `D/F#`, `D/C`, `E/G#`, `F/A`, `G/B`, `Am/G`.
+
+**Card e detalhe:**
+
+- **Card:** nome, tipo, função e grau, notas, diagrama com variações e "Ver detalhes".
+- **Detalhe:** notas com intervalo, campo harmônico com o acorde destacado, função, caráter, substituições, dica e o seletor da tonalidade da análise.
+- **Com capo:** o card mostra a forma tocada e o acorde que soa ("forma de F7, soa como G7"); a análise usa o que soa.
+- **Onde abre:** no celular, o card sobe de baixo e o detalhe ocupa a tela; no tablet, abre centralizado; no laptop, o detalhe abre num painel lateral ao lado da cifra.
 
 ## 10. Fluxos principais
 
@@ -410,6 +440,9 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 | D40 | Item do repertório tem id próprio | A mesma música pode entrar duas vezes, com tons diferentes |
 | D41 | Excluir música da biblioteca tira a música dos repertórios | Evita itens órfãos; a confirmação avisa |
 | D42 | A tela do repertório atualiza na hora e grava em fila | Cliques rápidos (tom, capo, subir) não se sobrescrevem |
+| D43 | Formas em módulo JS (`shapes.js`) + pestanas geradas por moldes, no lugar de `shapes.json` com 60 a 80 formas | Cobre qualquer tônica e tipo sem digitar centenas de formas, sem `fetch` no carregamento, e cada forma é testada |
+| D44 | Substituições fora do campo grafadas pelo intervalo a partir do acorde | O sétimo grau de A7 é C#° (sensível de Ré), não Db° |
+| D45 | Laptop: detalhe do acorde num painel lateral fixo | Dá para ler a análise sem tirar a cifra da tela |
 
 **Fora da v1:** afinador, OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
 
@@ -421,8 +454,8 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 **Fase 2: repertório** (feita)
 Repertórios com tom e capo por música, navegação entre as músicas e duplicação.
 
-**Fase 3: acordes e análise**
-`scales`, `harmony` (testes antes da implementação), `shapes.json` com variações, card rápido, detalhe e layout por aparelho.
+**Fase 3: acordes e análise** (feita)
+`scales`, `harmony` (testes antes da implementação), biblioteca de formas com pestanas geradas, card rápido, detalhe e layout por aparelho.
 
 **Fase 4: palco e áudio**
 Páginas e rolagem, wake lock, tela cheia, atalhos, metrônomo, `chordPlayer`, simplificar acordes.

@@ -2,12 +2,19 @@
 
 import { h, icon } from './dom.js';
 
-export function openDialog({ title, content, onClose }) {
+/** `showTitle: false` deixa o título só para leitores de tela (o conteúdo traz o próprio cabeçalho). */
+export function openDialog({ title, content, onClose, className = '', showTitle = true }) {
+  const body = h('div', { class: 'dialog-body' }, content);
   const dialog = h(
     'dialog',
-    { class: 'dialog', 'aria-label': title },
-    h('header', { class: 'dialog-header' }, h('h2', {}, title), h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Fechar', onclick: () => dialog.close() }, icon('close'))),
-    h('div', { class: 'dialog-body' }, content),
+    { class: `dialog ${className}`.trim(), 'aria-label': title },
+    h(
+      'header',
+      { class: `dialog-header${showTitle ? '' : ' dialog-header-bare'}` },
+      showTitle ? h('h2', {}, title) : h('span', { class: 'sheet-handle', 'aria-hidden': 'true' }),
+      h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Fechar', onclick: () => dialog.close() }, icon('close')),
+    ),
+    body,
   );
   // Clique fora do conteúdo fecha.
   dialog.addEventListener('click', (e) => {
@@ -19,5 +26,12 @@ export function openDialog({ title, content, onClose }) {
   });
   document.body.append(dialog);
   dialog.showModal();
-  return { close: () => dialog.close(), element: dialog };
+  return {
+    close: () => dialog.close(),
+    element: dialog,
+    setContent: (...nodes) => {
+      body.replaceChildren(...nodes);
+      body.scrollTop = 0;
+    },
+  };
 }
