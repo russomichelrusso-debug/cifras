@@ -6,7 +6,7 @@
 // percebe a atualização e o app mostra "Nova versão disponível".
 
 // <precache>
-const VERSION = 'cb245acfdacb';
+const VERSION = 'ebee28a03c04';
 const PRECACHE = [
   './',
   './assets/icons/apple-touch-icon.png',
@@ -23,6 +23,8 @@ const PRECACHE = [
   './js/audio/chordPlayer.js',
   './js/audio/context.js',
   './js/audio/metronome.js',
+  './js/audio/mic.js',
+  './js/audio/pitch.js',
   './js/audio/synth.js',
   './js/chordlib/lookup.js',
   './js/chordlib/shapes.js',
@@ -69,6 +71,7 @@ const PRECACHE = [
   './js/views/songBody.js',
   './js/views/songContext.js',
   './js/views/stage.js',
+  './js/views/tuner.js',
   './manifest.webmanifest',
 ];
 // </precache>

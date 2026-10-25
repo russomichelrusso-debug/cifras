@@ -1644,3 +1644,137 @@
     bottom: var(--space-5);
   }
 }
+
+/* ---------- Afinador ---------- */
+
+.page-tuner {
+  max-width: 560px;
+}
+
+.tuner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.tuner-reading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  min-height: 5.5rem;
+}
+
+.tuner-note {
+  font-size: 4.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tuner-octave {
+  color: var(--muted);
+  font-size: 1.5rem;
+}
+
+/* Régua de -50 a +50 cents; o ponteiro anda metade da largura para cada lado. */
+.tuner-meter {
+  position: relative;
+  width: 100%;
+  height: 48px;
+  background: var(--surface-2);
+  border-radius: var(--radius-small);
+  overflow: hidden;
+}
+
+.tuner-mark,
+.tuner-needle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+}
+
+.tuner-mark {
+  width: 2px;
+  margin-left: -1px;
+  background: var(--border);
+}
+
+/* O ponteiro ocupa a régua inteira (de -50% a +50%) para que translateX(n%) ande n cents. */
+.tuner-needle {
+  left: 0;
+  width: 100%;
+  transition: transform 0.12s ease-out;
+}
+
+.tuner-needle::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 50%;
+  width: 6px;
+  margin-left: -3px;
+  border-radius: 3px;
+  background: var(--warning-text);
+}
+
+.tuner-needle:not([data-tune])::after {
+  display: none;
+}
+
+.tuner-needle[data-tune='ok']::after {
+  background: var(--accent);
+}
+
+.tuner-scale {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.tuner-cents {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tuner-status {
+  min-height: 1.5em;
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.tuner-strings {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tuner-string {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+}
+
+.tuner-string.is-near {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.tuner-actions {
+  justify-content: space-between;
+  margin-top: var(--space-4);
+}

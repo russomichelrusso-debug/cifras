@@ -12,6 +12,7 @@ import { renderSetlist, renderSetlists } from './views/setlists.js';
 import { renderSettings } from './views/settings.js';
 import { renderSetlistSong, renderSong } from './views/song.js';
 import { renderSetlistStage, renderStage } from './views/stage.js';
+import { renderTuner } from './views/tuner.js';
 
 const VIEWS = {
   library: renderLibrary,
@@ -24,6 +25,7 @@ const VIEWS = {
   stage: renderStage,
   setlistStage: renderSetlistStage,
   settings: renderSettings,
+  tuner: renderTuner,
   notFound: (el) => notFoundPage(el, 'Página não encontrada.', '#/', 'Ir para a biblioteca'),
 };
 
@@ -31,11 +33,12 @@ const NAV = [
   ['library', '#/', 'library', 'Biblioteca'],
   ['setlists', SETLISTS_HASH, 'list', 'Repertórios'],
   ['importer', '#/importar', 'import', 'Importar'],
+  ['tuner', '#/afinador', 'tuner', 'Afinador'],
   ['settings', '#/configuracoes', 'settings', 'Ajustes'],
 ];
 
 // Qual item da navegação fica marcado em cada rota.
-const NAV_SECTION = { setlists: 'setlists', setlist: 'setlists', setlistSong: 'setlists', setlistStage: 'setlists', importer: 'importer', settings: 'settings' };
+const NAV_SECTION = { setlists: 'setlists', setlist: 'setlists', setlistSong: 'setlists', setlistStage: 'setlists', importer: 'importer', settings: 'settings', tuner: 'tuner' };
 
 /** Tema: "system" segue o aparelho; "light" e "dark" fixam (tokens.css lê data-theme). */
 const THEME_COLOR = { light: '#f7f5f0', dark: '#16181d' };
