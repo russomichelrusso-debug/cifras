@@ -192,6 +192,32 @@ Regras:
 - Qualquer outra linha vira `text`, sem estilo especial na v1.
 - Tabs e espaços não separáveis são normalizados antes da conversão.
 
+Formatos encontrados nas cifras reais (`tests/fixtures/`, trechos de cifras do E-Chords):
+
+| Formato | Exemplo | Tratamento |
+|---|---|---|
+| Cabeçalho do site | `Jimi Hendrix - Angel (Chords)` | vira `meta.artist` e `meta.title` |
+| Tom do site | `Tom: Em` | vira `meta.siteKey`, só informativo (ver seção 8) |
+| Capotraste no texto | `CAPO 1` | vira `meta.capo` |
+| Seção sublinhada | `Verse:` + `------` | abre seção |
+| Seção sem dois-pontos | `Chorus`, `Verse 1`, `(Part IV)`, `Guitar Solo` | abre seção; se ficar vazia, é uma referência ("repita o refrão") |
+| Rótulo + acordes | `Intro: B7 E`, `SOLO \|: F Eb :\| 3x`, `Part II Gm C F` | bloco `chords` com `label`, sem abrir seção |
+| Rótulo + texto | `TAG: We got married...` | bloco `text` com `label` |
+| Repetição | `(2x)`, `(x4)`, `3x`, `(Repeat 8x)`, `( D G7/D ) (2x)` | `repeat` no bloco |
+| Decoração | `\|:` `:\|` `{:` `:}` `{A` `D}` `A------` `->` | ignorada na análise, preservada na exibição |
+| Acorde opcional | `(F#°7)` | `optional: true`, fora da detecção de tom |
+| Acorde no meio da letra | `My (E) child`, `a-{C} round`, `[C]Tudo é` (ChordPro) | convertido em `chordLyric` |
+| Acorde solto na letra | `went C7 out` | **não** convertido; vira aviso `bareInlineChord` |
+| Tablatura | `e\|--0--`, `\|-----\|`, `G -4---5--` | bloco `tab` |
+| Formas em números | `668886 -> -> x0888x` | bloco `tab` |
+| Diagramas ASCII | `o\|\|\|oo` com nome acima e casa à esquerda | vão para `diagrams`, fora da cifra |
+| Rodapé e créditos | `E-Chords.com`, `Por:`, `Email:`, `Contribuição:` | removidos |
+
+Limitações conhecidas:
+
+- `Chorus` sozinho antes de uma estrofe nova é ambíguo: pode ser "repita o refrão" ou o início de uma seção. O parser trata como início de seção.
+- Os diagramas do site não diferenciam corda solta de corda abafada (fica `null`).
+
 ## 7. Análise harmônica (regras)
 
 Entrada: tonalidade (`{ tonic, mode }`) e acorde.
@@ -231,7 +257,14 @@ As tabelas ficam em `theory/harmony.js` como constantes.
 
 ## 8. Detecção de tom e grafia
 
-- **Inferência**: para cada um dos 24 tons, pontua os acordes da música (diatônico conta mais, primeiro e último acordes contam mais, V→I conta mais). O tom com mais pontos aparece na prévia para você confirmar ou corrigir.
+- **Inferência**: para cada um dos 24 tons, pontua os acordes da música:
+  - acorde do campo harmônico (o bVII entra com peso menor, por causa do mixolídio do rock)
+  - acorde da tônica, com bônus quando abre ou fecha uma linha
+  - primeiro e último acordes da música
+  - V7 → I (o V → I sem sétima conta pouco, porque I → IV em mixolídio imita uma cadência)
+
+  A prévia mostra os 3 tons mais prováveis para você escolher. Nos trechos de teste, o primeiro colocado acerta os 8 casos sem ambiguidade. Os casos ambíguos (Cat's in the Cradle, Wish You Were Here) ficam entre os 3 primeiros.
+- **"Tom:" do site**: aparece só como informação. Nas cifras de teste ele diverge dos acordes escritos em 4 de 12, porque o site informa o tom da gravação (afinação meio tom abaixo, capo). Exemplos: Folsom Prison Blues diz `F`, mas os acordes estão em `E`; The Wind Cries Mary diz `C`, mas está em `F`.
 - **Grafia ao transpor**: segue a armadura do tom de destino (tons com bemol usam `Bb`, `Eb`; tons com sustenido usam `F#`, `C#`). Acordes fora do campo são grafados pelo grau (em E, `bVII` = `D`, não `C##`).
 - **Ponto aberto:** padrão entre `F#` e `Gb` (proposta: `F#` maior e `Eb` menor, que são os mais comuns no violão).
 
@@ -314,6 +347,10 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 | D28 | Graus minúsculos para acordes menores | Convenção da teoria musical |
 | D29 | Lápis do tom no detalhe muda só a análise | Explora modulação sem alterar a música |
 | D30 | Som do acorde por síntese Karplus-Strong | Soa como corda, sem arquivos de áudio |
+| D31 | `C9` sem sétima é nona adicionada (convenção BR); `C7(9)` é a nona com sétima | Padrão dos sites brasileiros (ponto aberto: sites americanos usam o contrário) |
+| D32 | `7+` é sétima maior (convenção BR) | Idem |
+| D33 | O "Tom:" do site é só informativo; o tom vem dos acordes | O site informa o tom da gravação, não o dos acordes escritos |
+| D34 | Acorde solto no meio da letra gera aviso, não conversão | "A", "E" e "F" também são palavras |
 
 **Fora da v1:** afinador, OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
 
