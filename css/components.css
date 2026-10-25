@@ -1588,3 +1588,62 @@
 .stage-flow.is-instant {
   transition: none;
 }
+
+/* ---------- Configurações e PWA ---------- */
+
+.page-settings {
+  max-width: 720px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.settings-group h2 {
+  font-size: 1rem;
+}
+
+.settings-group .select {
+  width: 100%;
+}
+
+.plain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + var(--space-4));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.update-banner .icon-button {
+  color: var(--bg);
+}
+
+@media (min-width: 1024px) {
+  .update-banner,
+  .toast {
+    bottom: var(--space-5);
+  }
+}

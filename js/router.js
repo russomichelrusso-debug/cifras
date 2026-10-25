@@ -10,6 +10,7 @@ const ROUTES = [
   [/^#\/repertorios$/, 'setlists'],
   [/^#\/repertorio\/([^/]+)$/, 'setlist'],
   [/^#\/repertorio\/([^/]+)\/item\/([^/]+)$/, 'setlistSong'],
+  [/^#\/configuracoes$/, 'settings'],
   [/^#\/palco\/musica\/([^/]+)$/, 'stage'],
   [/^#\/palco\/repertorio\/([^/]+)\/([^/]+)$/, 'setlistStage'],
 ];

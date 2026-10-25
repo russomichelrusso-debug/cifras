@@ -22,7 +22,7 @@ Não há backend na v1. Tudo roda no navegador, com dados em IndexedDB, e o app 
 ## 2. Stack e requisitos técnicos
 
 - HTML5, CSS3 (variáveis CSS para tema claro/escuro, layout responsivo por breakpoints) e JavaScript ES2022 com módulos nativos
-- Manifest (`manifest.webmanifest`) e Service Worker (`sw.js`) com cache do shell da aplicação
+- Manifest (`manifest.webmanifest`) e Service Worker (`sw.js`) com cache do app inteiro e versão por hash do conteúdo
 - IndexedDB via `idb`
 - Web Audio API para metrônomo e síntese de corda (Karplus-Strong)
 - Screen Wake Lock API e Fullscreen API no modo palco
@@ -49,15 +49,19 @@ Os dois renderizadores (segmentos e monoespaçado) consomem o mesmo modelo conve
 ```
 cifras/
 ├── index.html
-├── manifest.webmanifest
-├── sw.js
+├── manifest.webmanifest   # nome, ícones, standalone, atalhos (Repertórios, Importar)
+├── sw.js                  # cache do app; lista e versão geradas por scripts/precache.mjs
+├── vercel.json            # sw.js sem cache HTTP
+├── scripts/
+│   └── precache.mjs       # gera a lista de arquivos e a versão (hash) dentro do sw.js
 ├── css/
 │   ├── tokens.css          # cores, espaçamento, fontes, tema, breakpoints
 │   ├── base.css
 │   ├── layout.css          # celular / tablet / laptop
 │   └── components.css
 ├── js/
-│   ├── main.js             # bootstrap: SW, router, store, storage.persist()
+│   ├── main.js             # bootstrap: tema, router, store, storage.persist(), SW
+│   ├── pwa.js              # registro do SW, aviso de nova versão, botão de instalar
 │   ├── router.js           # rotas por hash (#/, #/importar, #/musica/:id, #/musica/:id/editar, ...)
 │   ├── store.js            # estado global com pub/sub
 │   ├── theory/
@@ -112,7 +116,7 @@ cifras/
 │       ├── setlists.js     # lista de repertórios e edição de um repertório
 │       ├── stage.js        # páginas + rolagem, wake lock, tela cheia, atalhos
 │       ├── chordPopup.js   # abre o card do acorde (tela da música e palco)
-│       └── settings.js
+│       └── settings.js     # tema, notação, nomes das notas, exibição, instalar, armazenamento
 ├── tests/
 │   ├── notes.test.js
 │   ├── chords.test.js
@@ -127,7 +131,7 @@ cifras/
 │   ├── stage.test.js
 │   └── fixtures/           # trechos de cifras reais coladas de sites
 └── assets/
-    └── icons/
+    └── icons/             # icon.svg e maskable.svg (fonte) + PNGs 192, 512, maskable 512, apple-touch 180
 ```
 
 ## 5. Modelo de dados (persistido)
@@ -425,6 +429,24 @@ Botão na tela da música e no palco. Andamento de 30 a 260 bpm (−5, −1, +1,
 **Som do acorde**
 Botão "Ouvir" no diagrama: toca a forma mostrada como rasgueado (da corda grave para a aguda, 30 ms entre cordas), com o capo somado. O som é sintetizado por Karplus-Strong (ruído numa linha de atraso do tamanho do período, filtrada a cada volta), sem arquivos de áudio.
 
+**Instalar e usar sem internet**
+
+- **Primeiro acesso:** o Service Worker guarda todos os arquivos do app no cache. Daí em diante, tudo abre sem internet: biblioteca, música, acordes, palco e ajustes.
+- **Cache:** é cache-first, só da própria origem. Os dados do usuário ficam no IndexedDB e o cache nunca os toca.
+- **Atualização:**
+  - `npm run precache` grava no `sw.js` a lista de arquivos e uma versão que é o hash de todos eles (e da lógica do próprio `sw.js`). Qualquer arquivo alterado muda o `sw.js`, e o navegador percebe a versão nova.
+  - Um teste (`tests/pwa.test.js`) falha se o `sw.js` estiver desatualizado, então não dá para publicar sem rodar o script.
+  - A versão nova baixa os arquivos com `cache: 'reload'`, pulando o cache HTTP do navegador; sem isso, ela poderia guardar cópias velhas (o teste de atualização pegou esse caso).
+  - A versão nova fica esperando. O app mostra "Nova versão disponível · Atualizar"; ao tocar, ela assume e a página recarrega uma vez. Nada muda no meio de uma música.
+  - O app procura atualização ao voltar ao primeiro plano.
+- **Instalar:**
+  - Android e computador: botão "Instalar o app" em Ajustes, que usa o convite do navegador (`beforeinstallprompt`).
+  - iPhone e iPad: instruções (Compartilhar → Adicionar à Tela de Início), em Ajustes e no aviso da biblioteca.
+- **Ajustes:**
+  - tema (sistema, claro, escuro; a cor da barra do navegador acompanha);
+  - notação dos acordes, nomes das notas, exibição da cifra e simplificar;
+  - estado do armazenamento persistente, espaço usado e versão do app.
+
 **Backup**
 Exportar gera um `.json` com músicas, repertórios e configurações. Importar mescla por `id`, e o registro com `updatedAt` mais recente vence. Na primeira execução, o app chama `navigator.storage.persist()` e, se não estiver instalado, mostra o aviso para instalar.
 
@@ -482,6 +504,10 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 | D48 | "Próxima" no fim da última página vai para a próxima música do repertório | Um pedal só basta para o culto ou show inteiro |
 | D49 | Barras do palco fixas (sem esconder sozinhas) | Esconder mudaria a altura das colunas e o número de páginas no meio da música |
 | D50 | Andamento e velocidade de rolagem salvos na música; metrônomo para ao sair da tela | Cada música tem seu andamento; som que continua em outra tela confunde |
+| D51 | Versão do cache = hash do conteúdo, gravada no `sw.js` por script, com teste que barra `sw.js` desatualizado | Sem bundler; mesmo assim, toda mudança chega aos aparelhos |
+| D52 | Atualização só quando o usuário toca em "Atualizar" (sem `skipWaiting` automático) | Trocar o app no meio de uma música no palco seria pior que esperar |
+| D53 | Instalação baixa os arquivos com `cache: 'reload'` | O cache HTTP poderia entregar arquivos velhos à versão nova |
+| D54 | Tela de ajustes com tema, notação, nomes das notas, exibição e instalação | As opções existiam no código sem forma de mudar |
 
 **Fora da v1:** afinador, OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
 
@@ -499,8 +525,8 @@ Repertórios com tom e capo por música, navegação entre as músicas e duplica
 **Fase 4: palco e áudio** (feita)
 Páginas e rolagem, wake lock, tela cheia, atalhos, metrônomo, `chordPlayer`, simplificar acordes.
 
-**Fase 5: PWA final**
-Manifest, Service Worker, ícones, aviso de instalação e testes em celular, tablet e laptop.
+**Fase 5: PWA final** (feita)
+Manifest, Service Worker, ícones, instalação, aviso de nova versão, tela de ajustes e testes sem internet nos três tamanhos.
 
 **Fases futuras:** afinador, OCR, pedal Bluetooth, anotações, sincronização.
 
