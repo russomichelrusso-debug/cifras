@@ -2,6 +2,8 @@
 
 import { h, icon } from './ui/dom.js';
 
+const UPDATE_CHECK_MS = 30 * 60 * 1000;
+
 let installEvent = null;
 const installListeners = new Set();
 
@@ -15,6 +17,11 @@ window.addEventListener('appinstalled', () => {
   installEvent = null;
   installListeners.forEach((fn) => fn(false));
 });
+
+/** App aberto pela tela de início (instalado). */
+export const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+// iPadOS se apresenta como Mac; o toque denuncia.
+export const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 export const canInstall = () => installEvent !== null;
 export function onInstallAvailable(fn) {
@@ -69,7 +76,12 @@ export async function registerServiceWorker() {
     location.reload();
   });
 
-  // Procura versão nova ao voltar ao app (o navegador também procura sozinho a cada navegação).
-  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && reg.update().catch(() => {}));
+  // Procura versão nova ao voltar ao app, no máximo a cada 30 min (o navegador também procura a cada navegação).
+  let lastCheck = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || Date.now() - lastCheck < UPDATE_CHECK_MS) return;
+    lastCheck = Date.now();
+    reg.update().catch(() => {});
+  });
   return reg;
 }

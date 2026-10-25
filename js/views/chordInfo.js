@@ -5,7 +5,7 @@ import { lookupShapes } from '../chordlib/lookup.js';
 import { formatChord } from '../theory/chords.js';
 import { FUNCTION_NAMES, FUNCTION_TEXT, KIND_TEXT, analyzeChord, harmonicField, keyName } from '../theory/harmony.js';
 import { pcOf } from '../theory/notes.js';
-import { formatKey, transposeChord } from '../theory/transpose.js';
+import { formatKey } from '../theory/transpose.js';
 import { chordDiagram } from '../ui/chordDiagram.js';
 import { append, h, icon, toast } from '../ui/dom.js';
 import { keySelect } from '../ui/keySelect.js';
@@ -16,8 +16,7 @@ const SOURCE_LABEL = { open: 'Posição aberta', barre: 'Pestana', site: 'Desenh
  * Junta tudo o que o card e o detalhe precisam.
  * shapeChord: o acorde como aparece na tela (forma tocada); soundingChord: o que soa (forma + capo).
  */
-export function chordInfo({ shapeChord, key, capo = 0, siteDiagram = null, notation = 'br', noteNaming = 'chordUS_noteLatin' }) {
-  const soundingChord = capo ? transposeChord(shapeChord, capo, key) : shapeChord;
+export function chordInfo({ shapeChord, soundingChord = shapeChord, key, capo = 0, siteDiagram = null, notation = 'br', noteNaming = 'chordUS_noteLatin' }) {
   return {
     shapeChord,
     soundingChord,

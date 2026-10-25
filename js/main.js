@@ -1,8 +1,9 @@
 // Bootstrap: estado, armazenamento persistente, aviso de instalação e rotas.
 
-import { registerServiceWorker } from './pwa.js';
-import { startRouter } from './router.js';
+import { isIOS, isStandalone, registerServiceWorker } from './pwa.js';
+import { SETLISTS_HASH, startRouter } from './router.js';
 import { getSettingsState, initStore, subscribe, updateSettings } from './store.js';
+import { notFoundPage } from './ui/controls.js';
 import { h, icon } from './ui/dom.js';
 import { renderEditor } from './views/editor.js';
 import { renderImporter } from './views/importer.js';
@@ -23,12 +24,12 @@ const VIEWS = {
   stage: renderStage,
   setlistStage: renderSetlistStage,
   settings: renderSettings,
-  notFound: (el) => el.replaceChildren(h('div', { class: 'page' }, h('p', {}, 'Página não encontrada.'), h('a', { class: 'button', href: '#/' }, 'Ir para a biblioteca'))),
+  notFound: (el) => notFoundPage(el, 'Página não encontrada.', '#/', 'Ir para a biblioteca'),
 };
 
 const NAV = [
   ['library', '#/', 'library', 'Biblioteca'],
-  ['setlists', '#/repertorios', 'list', 'Repertórios'],
+  ['setlists', SETLISTS_HASH, 'list', 'Repertórios'],
   ['importer', '#/importar', 'import', 'Importar'],
   ['settings', '#/configuracoes', 'settings', 'Ajustes'],
 ];
@@ -49,15 +50,9 @@ function applyTheme({ theme }) {
   });
 }
 
-const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-// iPadOS se apresenta como Mac; o toque denuncia.
-const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
 async function requestPersistence() {
   if (!navigator.storage?.persist) return;
-  if (await navigator.storage.persisted()) return;
-  await navigator.storage.persist();
-  updateSettings({ persistRequested: true });
+  if (!(await navigator.storage.persisted())) await navigator.storage.persist();
 }
 
 function installHint() {

@@ -1,7 +1,7 @@
 // Transposição com grafia pela armadura do tom de destino.
 // Tom: { tonic: "C", mode: "major" | "minor" }
 
-import { LETTERS, letterIndex, mod12, parseNote, pcOf, simpleName, spellWithLetter } from './notes.js';
+import { mod12, pcOf, simpleName, spellInterval } from './notes.js';
 
 // Grafia padrão da tônica para cada índice cromático (F# maior e Eb menor, ver seção 8 da arquitetura).
 const TONIC_NAMES = {
@@ -11,7 +11,7 @@ const TONIC_NAMES = {
 
 // Distância em semitons a partir da tônica -> passos de letra (grau - 1).
 // 0 I, 1 bII, 2 II, 3 bIII, 4 III, 5 IV, 6 #IV, 7 V, 8 bVI, 9 VI, 10 bVII, 11 VII
-const DEGREE_STEPS = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
+export const DEGREE_STEPS = [0, 1, 1, 2, 2, 3, 3, 4, 5, 5, 6, 6];
 
 const AWKWARD = new Set(['E#', 'B#', 'Cb', 'Fb']);
 const FLAT_MINOR = new Set(['D', 'G', 'C', 'F']);
@@ -30,6 +30,9 @@ export function parseKey(str) {
 
 export const formatKey = (key) => key.tonic + (key.mode === 'minor' ? 'm' : '');
 
+/** Os 24 tons (12 maiores e 12 menores), com a grafia padrão da tônica. */
+export const ALL_KEYS = ['major', 'minor'].flatMap((mode) => TONIC_NAMES[mode].map((tonic) => ({ tonic, mode })));
+
 export function transposeKey(key, semitones) {
   const pc = mod12(pcOf(key.tonic) + semitones);
   return { tonic: TONIC_NAMES[key.mode][pc], mode: key.mode };
@@ -37,10 +40,8 @@ export function transposeKey(key, semitones) {
 
 /** Grafa uma nota pelo grau dentro do tom (em E, a nota 2 = D, não C##). */
 export function spellInKey(pc, key) {
-  const tonic = parseNote(key.tonic);
-  const offset = mod12(pc - tonic.pc);
-  const letter = LETTERS[(letterIndex(tonic.letter) + DEGREE_STEPS[offset]) % 7];
-  const name = spellWithLetter(pc, letter);
+  const offset = mod12(pc - pcOf(key.tonic));
+  const name = spellInterval(key.tonic, offset, DEGREE_STEPS[offset]);
   if (!name || name.length > 2 || AWKWARD.has(name)) return simpleName(pc, keyPrefersFlats(key));
   return name;
 }

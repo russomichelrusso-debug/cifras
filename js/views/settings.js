@@ -1,6 +1,6 @@
 // Configurações: aparência, cifras e app (instalar, armazenamento, versão).
 
-import { canInstall, onInstallAvailable, promptInstall } from '../pwa.js';
+import { canInstall, isIOS, isStandalone, onInstallAvailable, promptInstall } from '../pwa.js';
 import { getSettingsState, updateSettings } from '../store.js';
 import { h, icon, toast } from '../ui/dom.js';
 
@@ -10,9 +10,6 @@ const OPTIONS = {
   noteNaming: [['chordUS_noteLatin', 'Dó, Ré, Mi'], ['americano', 'C, D, E']],
   layoutMode: [['auto', 'Automático (pela largura da tela)'], ['mono', 'Colunas fixas'], ['segments', 'Ajustar à tela']],
 };
-
-const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
 function select(key, label) {
   const id = `set-${key}`;
@@ -51,8 +48,8 @@ export async function renderSettings(container) {
   const offInstall = onInstallAvailable(drawInstall);
   drawInstall();
 
-  const storage = h('ul', { class: 'plain-list muted small' }, (await storageInfo()).map((t) => h('li', {}, t)));
-  const version = await appVersion();
+  const [info, version] = await Promise.all([storageInfo(), appVersion()]);
+  const storage = h('ul', { class: 'plain-list muted small' }, info.map((t) => h('li', {}, t)));
 
   container.replaceChildren(
     h(

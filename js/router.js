@@ -33,7 +33,9 @@ export const navigate = (hash) => {
   location.hash = hash;
 };
 
+export const SETLISTS_HASH = '#/repertorios';
 export const songHash = (id) => `#/musica/${encodeURIComponent(id)}`;
+export const editHash = (id) => `${songHash(id)}/editar`;
 export const setlistHash = (id) => `#/repertorio/${encodeURIComponent(id)}`;
 export const setlistSongHash = (id, itemId) => `${setlistHash(id)}/item/${encodeURIComponent(itemId)}`;
 export const stageHash = (songId) => `#/palco/musica/${encodeURIComponent(songId)}`;

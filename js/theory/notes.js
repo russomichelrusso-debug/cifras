@@ -39,6 +39,15 @@ export function spellWithLetter(pc, letter) {
 
 export const letterIndex = (letter) => LETTERS.indexOf(letter);
 
+/**
+ * Nota a `semitones` semitons e `steps` letras acima de `rootName` (terça de C = E, sétima de C°7 = Bbb).
+ * Retorna null se a grafia exigir mais que um dobrado.
+ */
+export function spellInterval(rootName, semitones, steps) {
+  const root = parseNote(rootName);
+  return spellWithLetter(mod12(root.pc + semitones), LETTERS[(letterIndex(root.letter) + steps) % 7]);
+}
+
 /** Nome latino: "F#" -> "Fá#", "Bb" -> "Sib". */
 export function latinName(name) {
   const n = parseNote(name);

@@ -43,3 +43,19 @@ export const get = (store, key) => run(store, 'readonly', (s) => s.get(key));
 export const put = (store, value, key) => run(store, 'readwrite', (s) => (key === undefined ? s.put(value) : s.put(value, key)));
 export const remove = (store, key) => run(store, 'readwrite', (s) => s.delete(key));
 export const putMany = (store, values) => run(store, 'readwrite', (s) => values.forEach((v) => s.put(v)));
+
+/**
+ * Lê, transforma e grava na mesma transação: duas telas salvando campos diferentes não se sobrescrevem.
+ * `fn` recebe o registro atual e retorna o novo (ou undefined para não gravar). Retorna o que foi gravado.
+ */
+export async function update(store, key, fn) {
+  let next;
+  await run(store, 'readwrite', (s) => {
+    const req = s.get(key);
+    req.onsuccess = () => {
+      next = fn(req.result);
+      if (next !== undefined) s.put(next);
+    };
+  });
+  return next;
+}

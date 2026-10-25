@@ -176,10 +176,9 @@ O **texto bruto é a fonte da verdade**. O modelo estruturado é derivado na hor
   simplifyChords: false,
   defaultFontSize: 18,
   layoutMode: "auto",              // auto | mono (colunas fixas) | segments (ajustar à tela)
-  stageScrollSpeed: 2,
-  showAnalysis: true,
+  stageMode: "pages",              // pages | scroll
+  stageFontSize: 24,
   metronome: { bpm: 80, beatsPerBar: 4 },
-  persistRequested: false,
   installHintDismissed: false
 }
 ```
@@ -278,7 +277,7 @@ Limitações conhecidas:
 
 Entrada: tonalidade (`{ tonic, mode }`) e acorde.
 
-1. **Campo harmônico** da tonalidade. No modo menor, o campo combina menor natural, harmônica e melódica (ex.: em Am, `E`/`E7` é V e `G#°` é vii°).
+1. **Campo harmônico** da tonalidade. No modo menor, o campo combina menor natural, harmônica e melódica (ex.: em Am, `E`/`E7` é V e `G#°` é vii°). Os textos de função seguem o acorde: `D` em Am é o IV maior da melódica, `Bm` o ii da melódica.
 2. **Grau e função**: I, iii, vi = tônica; ii, IV = subdominante; V, vii° = dominante. Graus em **minúsculo para acordes menores** (`I ii iii IV V vi vii°`).
 3. **Fora do campo**, nesta ordem:
    - dominante secundária: acorde maior ou com 7 que resolve uma quinta abaixo num grau do campo (`A7` em C = `V7/ii`)

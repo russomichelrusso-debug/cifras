@@ -1,21 +1,20 @@
 // Biblioteca: lista, busca e backup.
 
 import { songHash } from '../router.js';
+import { songSearch } from '../songs/search.js';
 import { downloadBackup, importBackup } from '../storage/backup.js';
 import { listSongs } from '../storage/songs.repo.js';
 import { formatKey } from '../theory/transpose.js';
 import { h, icon, toast } from '../ui/dom.js';
 
-const normalize = (s) => (s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-
 export async function renderLibrary(container) {
   const songs = await listSongs();
+  const find = songSearch(songs);
   const list = h('ul', { class: 'song-list' });
   const search = h('input', { class: 'input', type: 'search', placeholder: 'Buscar por título ou artista', 'aria-label': 'Buscar', oninput: () => fill() });
 
   function fill() {
-    const q = normalize(search.value);
-    const found = songs.filter((s) => normalize(`${s.title} ${s.artist}`).includes(q));
+    const found = find(search.value);
     list.replaceChildren(
       ...found.map((s) =>
         h(

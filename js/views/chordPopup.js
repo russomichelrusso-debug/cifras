@@ -2,20 +2,20 @@
 // Usado pela tela da música e pelo modo palco.
 
 import { getSettingsState } from '../store.js';
-import { shownChord, viewKeys } from '../theory/notation.js';
 import { openDialog } from '../ui/dialog.js';
 import { chordInfo, renderChordCard, renderChordDetail } from './chordInfo.js';
 
-/** Informações do acorde do item, com o tom, o capo e as opções de exibição atuais. */
-export function chordInfoFor(item, { song, state, parsed }) {
-  if (!item.chord) return null;
+/**
+ * Informações do acorde tocado. O primeiro argumento é o que o corpo da cifra entrega no toque
+ * (`onChord`): forma tocada e acorde que soa, já com tom, capo e simplificação. O tom da análise é o que soa.
+ */
+export function chordInfoFor({ item, shapeChord, soundingChord, sameAsText }, { parsed, currentKey, capo }) {
   const settings = getSettingsState();
-  const keys = viewKeys({ ...song, ...state });
-  const sameAsText = keys.shift === 0 && !settings.simplifyChords;
   return chordInfo({
-    shapeChord: shownChord(item.chord, { shift: keys.shift, key: keys.shapes, simplify: settings.simplifyChords }),
-    key: state.currentKey,
-    capo: state.capo,
+    shapeChord,
+    soundingChord,
+    key: currentKey,
+    capo,
     siteDiagram: sameAsText ? parsed.diagrams.find((d) => d.name === item.text) : null,
     notation: settings.chordNotation,
     noteNaming: settings.noteNaming,

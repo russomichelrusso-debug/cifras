@@ -2,19 +2,19 @@
 // Tela sempre acesa (Wake Lock), tela cheia quando o aparelho permite, metrônomo e atalhos de teclado.
 
 import { navigate, setlistSongHash, setlistStageHash, songHash } from '../router.js';
-import { neighbors, updateItem } from '../setlists/model.js';
-import { clampPage, clampLevel, pageCount, pageLayout, scrollPxPerSecond } from '../stage/paging.js';
+import { GAP, clampPage, clampLevel, pageCount, pageLayout, scrollPxPerSecond } from '../stage/paging.js';
 import { parseSong } from '../songs/parser.js';
-import { getSetlist, saveSetlist } from '../storage/setlists.repo.js';
-import { getSong, saveSong } from '../storage/songs.repo.js';
+import { createPatchSaver } from '../storage/patchSaver.js';
+import { updateSong } from '../storage/songs.repo.js';
 import { getSettingsState, updateSettings } from '../store.js';
 import { formatKey, transposeKey } from '../theory/transpose.js';
+import { fontButtons, notFoundPage, stepper } from '../ui/controls.js';
 import { h, icon, toast } from '../ui/dom.js';
-import { metronome, onMetronomeState, openMetronomeDialog, stopMetronome } from '../ui/metronomePanel.js';
+import { metronomeButton, stopMetronome } from '../ui/metronomePanel.js';
 import { chordInfoFor, createChordDialog } from './chordPopup.js';
 import { mountSongBody } from './songBody.js';
+import { setlistContext, songContext } from './songContext.js';
 
-const GAP = 32;
 const SWIPE_MIN = 50;
 
 /** Pede a tela sempre acesa e renova quando o app volta ao primeiro plano. */
@@ -49,7 +49,7 @@ const WAKE_TEXT = {
 
 /**
  * ctx: {
- *   state: { currentKey, capo }, save(state),
+ *   state: { currentKey, capo }, saveState(state),
  *   exitHref, subtitle?,
  *   prev?: { href, title }, next?: { href, title },
  * }
@@ -60,11 +60,10 @@ function mountStage(container, song, ctx) {
   let state = { ...ctx.state };
   let mode = settings.stageMode;
   let fontSize = settings.stageFontSize;
-  let level = clampLevel(song.scrollSpeed ?? settings.stageScrollSpeed);
-  let bpm = song.bpm ?? settings.metronome.bpm;
+  let level = clampLevel(song.scrollSpeed);
   let page = 0;
   let pages = 1;
-  let layout = pageLayout(window.innerWidth, { gap: GAP });
+  let layout = pageLayout(window.innerWidth);
   let playing = false;
   let raf = null;
   const chordDialog = createChordDialog();
@@ -75,25 +74,14 @@ function mountStage(container, song, ctx) {
   const pageLabel = h('span', { class: 'stage-page', 'aria-live': 'polite' });
   const levelLabel = h('span', { class: 'stepper-value' });
   const wake = h('span', { class: 'stage-wake small' });
-  const bpmLabel = h('span', {});
   const playButton = h('button', { class: 'button stage-play', type: 'button', onclick: () => setPlaying(!playing) });
   const modeButtons = ['pages', 'scroll'].map((m) =>
     h('button', { class: 'segmented-option', type: 'button', 'aria-pressed': String(m === mode), dataset: { mode: m }, onclick: () => setMode(m) }, m === 'pages' ? 'Páginas' : 'Rolagem'),
   );
 
   // ---------- Salvar ----------
-  let saveTimer = null;
-  function persist() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      saveTimer = null;
-      ctx.save(state);
-    }, 400);
-  }
-  async function saveSongField(patch) {
-    const fresh = (await getSong(song.id)) ?? song;
-    await saveSong({ ...fresh, ...patch });
-  }
+  const stateSaver = createPatchSaver(() => ctx.saveState(state));
+  const songSaver = createPatchSaver((patch) => updateSong(song.id, patch));
 
   // ---------- Layout e páginas ----------
   // Área útil do palco (sem o espaçamento interno).
@@ -109,7 +97,7 @@ function mountStage(container, song, ctx) {
     const { width, height } = innerSize();
     stage.dataset.mode = mode;
     if (mode === 'pages') {
-      layout = pageLayout(width, { gap: GAP });
+      layout = pageLayout(width);
       Object.assign(flow.style, { columnWidth: `${layout.columnWidth}px`, columnGap: `${GAP}px`, height: `${height}px`, width: `${width}px` });
     } else {
       Object.assign(flow.style, { columnWidth: '', columnGap: '', height: '', width: '' });
@@ -118,7 +106,7 @@ function mountStage(container, song, ctx) {
 
   function countPages() {
     if (mode !== 'pages') return;
-    pages = pageCount(flow.scrollWidth, layout.step, GAP);
+    pages = pageCount(flow.scrollWidth, layout.step);
     goPage(page, { instant: true });
   }
 
@@ -179,7 +167,7 @@ function mountStage(container, song, ctx) {
   function setLevel(n) {
     level = clampLevel(n);
     levelLabel.textContent = String(level);
-    saveSongField({ scrollSpeed: level });
+    songSaver.schedule({ scrollSpeed: level });
   }
 
   // ---------- Tom e fonte ----------
@@ -187,7 +175,7 @@ function mountStage(container, song, ctx) {
     state = { ...state, currentKey: transposeKey(state.currentKey, delta) };
     keyLabel.textContent = formatKey(state.currentKey);
     body.update({ currentKey: state.currentKey });
-    persist();
+    stateSaver.schedule({});
   }
 
   function setFont(delta) {
@@ -222,7 +210,7 @@ function mountStage(container, song, ctx) {
       ArrowLeft: prev, ArrowUp: prev, PageUp: prev,
       ' ': () => (mode === 'scroll' ? setPlaying(!playing) : next()),
       '+': () => setKey(1), '=': () => setKey(1), '-': () => setKey(-1),
-      f: toggleFullscreen, m: toggleMetronome,
+      f: toggleFullscreen, m: () => metro.toggle(),
       n: () => ctx.next && navigate(ctx.next.href), p: () => ctx.prev && navigate(ctx.prev.href),
       Escape: () => !document.fullscreenElement && navigate(ctx.exitHref),
     };
@@ -241,33 +229,14 @@ function mountStage(container, song, ctx) {
     else document.documentElement.requestFullscreen().catch(() => toast('Não foi possível entrar em tela cheia.', { error: true }));
   }
 
-  function toggleMetronome() {
-    try {
-      if (metronome.running) stopMetronome();
-      else {
-        metronome.start(bpm, settings.metronome.beatsPerBar);
-        refreshBpm();
-      }
-    } catch (err) {
-      toast(err.message, { error: true });
-    }
-  }
-
-  function refreshBpm() {
-    bpmLabel.textContent = `${bpm} bpm${metronome.running ? ' ●' : ''}`;
-  }
-  const offMetro = onMetronomeState(refreshBpm);
-
-  const metroButton = h('button', { class: 'button button-small', type: 'button', 'aria-label': 'Metrônomo', onclick: () => openMetronomeDialog({
-    bpm,
+  const metro = metronomeButton({
+    bpm: song.bpm ?? settings.metronome.bpm,
     beatsPerBar: settings.metronome.beatsPerBar,
     onChange: (v) => {
-      bpm = v.bpm;
-      refreshBpm();
-      saveSongField({ bpm });
-      updateSettings({ metronome: { bpm: v.bpm, beatsPerBar: v.beatsPerBar } });
+      updateSettings({ metronome: v });
+      songSaver.schedule({ bpm: v.bpm });
     },
-  }) }, icon('metronome'), bpmLabel);
+  });
 
   const songLink = (target, label, cls) =>
     target ? h('a', { class: `stage-song-link ${cls}`, href: target.href, title: target.title }, label) : h('span', { class: `stage-song-link ${cls}` });
@@ -283,15 +252,10 @@ function mountStage(container, song, ctx) {
       h(
         'div',
         { class: 'stage-tools' },
-        h('div', { class: 'stepper stepper-compact', role: 'group', 'aria-label': 'Tom' },
-          h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Meio tom abaixo', onclick: () => setKey(-1) }, icon('minus')),
-          keyLabel,
-          h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Meio tom acima', onclick: () => setKey(1) }, icon('plus'))),
-        h('div', { class: 'font-buttons', role: 'group', 'aria-label': 'Tamanho da letra' },
-          h('button', { class: 'icon-button text-button', type: 'button', 'aria-label': 'Diminuir letra', onclick: () => setFont(-2) }, 'A−'),
-          h('button', { class: 'icon-button text-button', type: 'button', 'aria-label': 'Aumentar letra', onclick: () => setFont(2) }, 'A+')),
+        stepper({ label: 'Tom', value: keyLabel, onMinus: () => setKey(-1), onPlus: () => setKey(1), names: ['Meio tom abaixo', 'Meio tom acima'], showLabel: false, compact: true }),
+        fontButtons(setFont),
         h('div', { class: 'segmented', role: 'group', 'aria-label': 'Modo do palco' }, modeButtons),
-        metroButton,
+        metro.element,
         canFullscreen ? h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Tela cheia', onclick: toggleFullscreen }, icon('stage')) : null,
       ),
     ),
@@ -309,11 +273,7 @@ function mountStage(container, song, ctx) {
           h('button', { class: 'icon-button icon-flip', type: 'button', 'aria-label': 'Próxima página', onclick: next }, icon('back'))),
         h('div', { class: 'stage-scroller' },
           playButton,
-          h('div', { class: 'stepper stepper-compact', role: 'group', 'aria-label': 'Velocidade da rolagem' },
-            h('span', { class: 'stepper-label' }, 'Vel.'),
-            h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Mais devagar', onclick: () => setLevel(level - 1) }, icon('minus')),
-            levelLabel,
-            h('button', { class: 'icon-button', type: 'button', 'aria-label': 'Mais rápido', onclick: () => setLevel(level + 1) }, icon('plus')))),
+          stepper({ label: 'Vel.', value: levelLabel, onMinus: () => setLevel(level - 1), onPlus: () => setLevel(level + 1), names: ['Mais devagar', 'Mais rápido'], compact: true })),
         wake,
       ),
       songLink(ctx.next, 'Próxima ›', 'next'),
@@ -323,7 +283,6 @@ function mountStage(container, song, ctx) {
 
   keyLabel.textContent = formatKey(state.currentKey);
   levelLabel.textContent = String(level);
-  refreshBpm();
   setPlaying(false);
   relayout();
 
@@ -337,11 +296,11 @@ function mountStage(container, song, ctx) {
     simplify: settings.simplifyChords,
     layoutMode: settings.layoutMode,
     fontSize,
-    isPhone: window.innerWidth < 600,
+    observe: false, // o palco observa o viewport e redesenha no relayout
     measureWidth: () => (mode === 'pages' ? layout.columnWidth : innerSize().width),
     onDraw: () => requestAnimationFrame(countPages),
-    onChord: (item) => {
-      const info = chordInfoFor(item, { song, state, parsed });
+    onChord: (event) => {
+      const info = chordInfoFor(event, { parsed, currentKey: state.currentKey, capo: state.capo });
       if (info) chordDialog.open(info);
     },
   });
@@ -364,49 +323,28 @@ function mountStage(container, song, ctx) {
     body.destroy();
     chordDialog.close();
     releaseWake();
-    offMetro();
+    metro.dispose();
     stopMetronome();
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    if (saveTimer) {
-      clearTimeout(saveTimer);
-      ctx.save(state);
-    }
+    stateSaver.flush();
+    songSaver.flush();
   };
 }
 
-const notFound = (container, text, href) =>
-  container.replaceChildren(h('div', { class: 'page' }, h('p', {}, text), h('a', { class: 'button', href }, 'Voltar')));
-
 export async function renderStage(container, [id]) {
-  const song = await getSong(id);
-  if (!song) return notFound(container, 'Música não encontrada.', '#/');
-  let latest = song;
-  return mountStage(container, song, {
-    state: { currentKey: song.currentKey, capo: song.capo },
-    save: async (state) => {
-      latest = await saveSong({ ...((await getSong(song.id)) ?? latest), ...state });
-    },
-    exitHref: songHash(song.id),
-  });
+  const ctx = await songContext(id);
+  if (ctx.error) return notFoundPage(container, ctx.error.text, ctx.error.href);
+  return mountStage(container, ctx.song, { ...ctx, exitHref: songHash(ctx.song.id) });
 }
 
 export async function renderSetlistStage(container, [setlistId, itemId]) {
-  let setlist = await getSetlist(setlistId);
-  const item = setlist?.items.find((it) => it.id === itemId);
-  if (!item) return notFound(container, 'Item do repertório não encontrado.', '#/repertorios');
-  const song = await getSong(item.songId);
-  if (!song) return notFound(container, 'Esta música foi excluída da biblioteca.', `#/repertorio/${encodeURIComponent(setlistId)}`);
-  const { index, total, prev, next } = neighbors(setlist, itemId);
-  const target = async (it) => it && { href: setlistStageHash(setlist.id, it.id), title: (await getSong(it.songId))?.title ?? 'Música excluída' };
-  return mountStage(container, song, {
-    state: { currentKey: item.key, capo: item.capo },
-    save: async (state) => {
-      setlist = (await getSetlist(setlist.id)) ?? setlist;
-      setlist = await saveSetlist(updateItem(setlist, itemId, { key: state.currentKey, capo: state.capo }));
-    },
-    exitHref: setlistSongHash(setlist.id, itemId),
-    subtitle: `${setlist.name} · ${index + 1} de ${total}`,
-    prev: await target(prev),
-    next: await target(next),
+  const ctx = await setlistContext(setlistId, itemId);
+  if (ctx.error) return notFoundPage(container, ctx.error.text, ctx.error.href);
+  const target = (it) => it && { href: setlistStageHash(setlistId, it.id), title: it.title };
+  return mountStage(container, ctx.song, {
+    ...ctx,
+    exitHref: setlistSongHash(setlistId, itemId),
+    prev: target(ctx.prev),
+    next: target(ctx.next),
   });
 }

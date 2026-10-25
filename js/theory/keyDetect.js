@@ -2,7 +2,7 @@
 // A pontuação é heurística: o resultado vai para a prévia de importação para ser confirmado.
 
 import { mod12, pcOf } from './notes.js';
-import { formatKey, transposeKey } from './transpose.js';
+import { ALL_KEYS, formatKey } from './transpose.js';
 
 // [distância da tônica, qualidade da tríade, peso]
 const FIELDS = {
@@ -49,25 +49,24 @@ export function rankKeys(entries) {
   const list = entries.map((e) => (e.chord ? e : { chord: e, lineStart: false, lineEnd: false }));
   if (!list.length) return [];
   const results = [];
-  for (const mode of ['major', 'minor']) {
-    for (let pc = 0; pc < 12; pc++) {
-      let score = 0;
-      list.forEach(({ chord, lineStart, lineEnd }, i) => {
-        score += WEIGHTS.diatonic * fieldWeight(chord, pc, mode);
-        if (!isTonic(chord, pc, mode)) return;
-        score += WEIGHTS.tonicChord;
-        if (lineStart) score += WEIGHTS.lineStart;
-        if (lineEnd) score += WEIGHTS.lineEnd;
-        const prev = list[i - 1]?.chord;
-        if (prev && mod12(pcOf(prev.root) - pc) === 7 && prev.triad === 'maj') {
-          score += prev.seventh === '7' ? WEIGHTS.cadence7 : WEIGHTS.cadence;
-        }
-      });
-      if (isTonic(list[0].chord, pc, mode)) score += WEIGHTS.first;
-      if (isTonic(list[list.length - 1].chord, pc, mode)) score += WEIGHTS.last;
-      const key = transposeKey({ tonic: 'C', mode }, pc);
-      results.push({ key, name: formatKey(key), score: score / list.length });
-    }
+  for (const key of ALL_KEYS) {
+    const { mode } = key;
+    const pc = pcOf(key.tonic);
+    let score = 0;
+    list.forEach(({ chord, lineStart, lineEnd }, i) => {
+      score += WEIGHTS.diatonic * fieldWeight(chord, pc, mode);
+      if (!isTonic(chord, pc, mode)) return;
+      score += WEIGHTS.tonicChord;
+      if (lineStart) score += WEIGHTS.lineStart;
+      if (lineEnd) score += WEIGHTS.lineEnd;
+      const prev = list[i - 1]?.chord;
+      if (prev && mod12(pcOf(prev.root) - pc) === 7 && prev.triad === 'maj') {
+        score += prev.seventh === '7' ? WEIGHTS.cadence7 : WEIGHTS.cadence;
+      }
+    });
+    if (isTonic(list[0].chord, pc, mode)) score += WEIGHTS.first;
+    if (isTonic(list[list.length - 1].chord, pc, mode)) score += WEIGHTS.last;
+    results.push({ key, name: formatKey(key), score: score / list.length });
   }
   return results.sort((a, b) => b.score - a.score);
 }

@@ -51,10 +51,13 @@ describe('readChordLine', () => {
   });
 });
 
+// O segmento traz o item da linha; para comparar, basta o nome do acorde.
+const segmentNames = (segments) => segments.map((s) => ({ chord: s.chord?.text ?? null, text: s.text }));
+
 describe('buildSegments', () => {
   it('divide a letra pela coluna dos acordes', () => {
     const { items } = readChordLine('C              G');
-    expect(buildSegments(items, 'Tudo é perda, a tua graça é')).toEqual([
+    expect(segmentNames(buildSegments(items, 'Tudo é perda, a tua graça é'))).toEqual([
       { chord: 'C', text: 'Tudo é perda, a' },
       { chord: 'G', text: ' tua graça é' },
     ]);
@@ -62,7 +65,7 @@ describe('buildSegments', () => {
 
   it('acorde depois do fim da letra fica com texto vazio', () => {
     const { items } = readChordLine('  E                 E7');
-    expect(buildSegments(items, 'I hear')).toEqual([
+    expect(segmentNames(buildSegments(items, 'I hear'))).toEqual([
       { chord: null, text: 'I ' },
       { chord: 'E', text: 'hear' },
       { chord: 'E7', text: '' },

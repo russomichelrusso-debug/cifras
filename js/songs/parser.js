@@ -19,7 +19,8 @@
 // items: [{ kind: "chord" | "deco", text, col, chord?, optional? }]
 
 import { parseChord } from '../theory/chords.js';
-import { pcOf } from '../theory/notes.js';
+import { shapePitchClasses } from '../chordlib/lookup.js';
+import { mod12, pcOf } from '../theory/notes.js';
 import { parseKey } from '../theory/transpose.js';
 
 const SECTION_WORDS = [
@@ -107,10 +108,12 @@ export function readChordLine(line, opts = {}) {
   const tokens = tokensWithCols(cleaned);
   if (!tokens.length) return null;
 
+  for (const t of tokens) t.ct = chordToken(t.text, opts);
+
   // Rótulo opcional no início: "Intro:", "SOLO", "Part II Guitar Solo", "Intro (Solo):"
   let label = null;
   let start = 0;
-  const firstChordIdx = tokens.findIndex((t) => chordToken(t.text, opts) || DECO.has(t.text));
+  const firstChordIdx = tokens.findIndex((t) => t.ct || DECO.has(t.text));
   if (firstChordIdx > 0 && firstChordIdx <= 5) {
     const candidate = tokens.slice(0, firstChordIdx).map((t) => t.text).join(' ');
     if (isSectionHeaderText(candidate.replace(/[():]/g, '').trim()) || /:$/.test(candidate)) {
@@ -122,7 +125,7 @@ export function readChordLine(line, opts = {}) {
   const items = [];
   const unknown = [];
   for (const t of tokens.slice(start)) {
-    const ct = chordToken(t.text, opts);
+    const { ct } = t;
     const dt = ct ? null : decoratedChordToken(t.text, opts);
     if (ct) items.push({ kind: 'chord', text: t.text, col: t.col, chord: ct.chord, optional: ct.optional });
     else if (dt) items.push({ kind: 'chord', text: dt.core, col: t.col + dt.offset, chord: dt.chord, optional: false, raw: t.text });
@@ -148,7 +151,7 @@ function isTabLine(line) {
   return (TAB_BODY_RE.test(body) && (body.match(/-/g) || []).length >= 4) || isShapeLine(line);
 }
 
-/** Segmentos { chord, text } para o renderizador do celular. */
+/** Segmentos { chord, text } para o renderizador do celular; `chord` é o item da linha (ou null). */
 export function buildSegments(items, lyric) {
   const chords = items.filter((i) => i.kind === 'chord');
   const segments = [];
@@ -157,68 +160,49 @@ export function buildSegments(items, lyric) {
   }
   chords.forEach((c, idx) => {
     const end = idx + 1 < chords.length ? chords[idx + 1].col : undefined;
-    segments.push({ chord: c.text, text: lyric.slice(c.col, end) });
+    segments.push({ chord: c, text: lyric.slice(c.col, end) });
   });
   return segments.filter((s, idx) => s.chord !== null || s.text !== '' || idx > 0);
 }
 
-/** Converte "My (E) child arrived" em itens de acorde + letra limpa. */
-function readInline(line, opts) {
-  let lyric = '';
-  const items = [];
-  let last = 0;
-  let found = false;
-  for (const m of line.matchAll(INLINE_RE)) {
-    const ct = chordToken(m[1], opts);
-    if (!ct || !ct.chord) continue;
-    found = true;
-    lyric += line.slice(last, m.index);
-    let next = m.index + m[0].length;
-    if ((lyric === '' || lyric.endsWith(' ')) && line[next] === ' ') next += 1;
-    items.push({ kind: 'chord', text: m[1], col: lyric.length, chord: ct.chord, optional: false });
-    last = next;
-  }
-  if (!found) return null;
-  lyric += line.slice(last);
-  return { items, lyric: lyric.replace(/\s+$/, '') };
-}
-
 // Acordes soltos no meio da letra ("went C7 out", "to F Jackson").
-// Só convertemos a linha se houver ao menos um acorde que não pode ser palavra (C7, Bm, F#).
-// "A", "E", "Am" e "Em" nunca são convertidos: são palavras em português ou inglês.
+// Só convertemos a linha se houver ao menos um acorde que não pode ser palavra (C7, Bm, F#)
+// ou um acorde marcado ("(E)", "{C}", "[C]"). "A", "E", "Am" e "Em" nunca são convertidos:
+// são palavras em português ou inglês.
 const WORD_LIKE_CHORDS = new Set(['A', 'E', 'Am', 'Em']);
 
-function readBareInline(line, opts, { force = false } = {}) {
-  const candidates = tokensWithCols(line).filter((t) => parseChord(t.text, opts));
-  const strong = candidates.some((t) => t.text.length >= 2 && !WORD_LIKE_CHORDS.has(t.text));
-  if (!strong && !force) return null;
-  const convert = candidates.filter((t) => !WORD_LIKE_CHORDS.has(t.text));
+/**
+ * Converte "My (E) child arrived" e "went C7 out" em itens de acorde + letra limpa, numa passagem:
+ * junta os trechos de acorde (marcados e soltos) da linha original e tira todos de uma vez.
+ */
+function readInlineChords(line, opts) {
+  const spans = [];
+  for (const m of line.matchAll(INLINE_RE)) {
+    const ct = chordToken(m[1], opts);
+    if (ct?.chord) spans.push({ start: m.index, end: m.index + m[0].length, text: m[1], chord: ct.chord });
+  }
+  const inMarked = (col) => spans.some((sp) => col >= sp.start && col < sp.end);
+  const bare = tokensWithCols(line).filter((t) => !inMarked(t.col)).map((t) => ({ ...t, chord: parseChord(t.text, opts) })).filter((t) => t.chord);
+  const strong = bare.some((t) => t.text.length >= 2 && !WORD_LIKE_CHORDS.has(t.text));
+  if (!spans.length && !strong) return null;
+  for (const t of bare) {
+    if (!WORD_LIKE_CHORDS.has(t.text)) spans.push({ start: t.col, end: t.col + t.text.length, text: t.text, chord: t.chord });
+  }
+  spans.sort((a, b) => a.start - b.start);
+
   let lyric = '';
   let last = 0;
   const items = [];
-  const removed = [];
-  for (const t of convert) {
-    lyric += line.slice(last, t.col);
-    let next = t.col + t.text.length;
+  for (const sp of spans) {
+    lyric += line.slice(last, sp.start);
+    let next = sp.end;
     if ((lyric === '' || lyric.endsWith(' ')) && line[next] === ' ') next += 1;
-    items.push({ kind: 'chord', text: t.text, col: lyric.length, chord: parseChord(t.text, opts), optional: false });
-    removed.push({ col: t.col, len: next - t.col });
+    items.push({ kind: 'chord', text: sp.text, col: lyric.length, chord: sp.chord, optional: false });
     last = next;
   }
   lyric += line.slice(last);
-  const skipped = candidates.filter((t) => WORD_LIKE_CHORDS.has(t.text)).map((t) => t.text);
-  return { items, lyric: lyric.replace(/\s+$/, ''), skipped, removed };
-}
-
-/** Acordes marcados ("(E)", "{C}") e, na mesma linha, os soltos ("to F Jackson"). */
-function readInlineChords(line, opts) {
-  const marked = readInline(line, opts);
-  if (!marked) return readBareInline(line, opts);
-  const bare = readBareInline(marked.lyric, opts, { force: true });
-  if (!bare.items.length) return marked;
-  const shift = (col) => col - bare.removed.filter((r) => r.col < col).reduce((sum, r) => sum + Math.min(r.len, col - r.col), 0);
-  const items = [...marked.items.map((it) => ({ ...it, col: shift(it.col) })), ...bare.items].sort((a, b) => a.col - b.col);
-  return { items, lyric: bare.lyric, skipped: bare.skipped };
+  const skipped = bare.filter((t) => WORD_LIKE_CHORDS.has(t.text)).map((t) => t.text);
+  return { items, lyric: lyric.replace(/\s+$/, ''), skipped };
 }
 
 // Letra solta que pode ter acorde: só gera aviso.
@@ -241,13 +225,6 @@ function detectSource(lines) {
   return { source: null, ninth: 'add' };
 }
 
-const STANDARD_TUNING = [4, 9, 2, 7, 11, 4];
-
-/** Notas (0 a 11) de um diagrama do site; cordas sem marca ficam de fora. */
-function diagramPitchClasses(diagram) {
-  return diagram.frets.flatMap((f, s) => (f === null ? [] : [(STANDARD_TUNING[s] + f) % 12]));
-}
-
 /** "C9" ambíguo: se o site desenhou o acorde, a presença da sétima menor decide. */
 function resolveNinthsWithDiagrams(sections, diagrams) {
   const byName = new Map(diagrams.map((d) => [d.name, d]));
@@ -257,7 +234,8 @@ function resolveNinthsWithDiagrams(sections, diagrams) {
         const d = it.kind === 'chord' && it.chord?.ambiguousNinth && byName.get(it.text);
         if (!d) continue;
         const rootPc = pcOf(it.chord.root);
-        const hasMinorSeventh = diagramPitchClasses(d).includes((rootPc + 10) % 12);
+        // Cordas sem marca (null) ficam de fora.
+        const hasMinorSeventh = shapePitchClasses(d.frets).includes(mod12(rootPc + 10));
         it.chord = { ...it.chord, seventh: hasMinorSeventh ? '7' : null };
         it.ninthFrom = 'diagram';
       }
@@ -305,9 +283,17 @@ export function parseSong(text) {
   });
   const sectionExists = (name) =>
     [...sections, section].some((s) => s.name?.toLowerCase() === name.toLowerCase());
-  const isLyricCandidate = (l) =>
-    l !== undefined && l.trim() !== '' && !readChordLine(l, opts)?.items && !isTabLine(l) && !GRID_RE.test(l) &&
+  // Cada linha é lida como linha de acordes uma vez só (a de baixo é consultada para saber se é letra).
+  const chordLines = new Map();
+  const chordLineAt = (i) => {
+    if (!chordLines.has(i)) chordLines.set(i, i < lines.length ? readChordLine(lines[i], opts) : null);
+    return chordLines.get(i);
+  };
+  const isLyricCandidate = (i) => {
+    const l = lines[i];
+    return l !== undefined && l.trim() !== '' && !chordLineAt(i)?.items && !isTabLine(l) && !GRID_RE.test(l) &&
     !SEPARATOR_RE.test(l) && !NOISE_RE.test(l) && !isSectionHeaderText(l.trim().replace(/^[[(]|[\])]$|:$/g, '').trim());
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -319,7 +305,7 @@ export function parseSong(text) {
       if (last && last.type !== 'blank') push({ type: 'blank' });
       continue;
     }
-    if (i === firstContent && HEADER_RE.test(trimmed) && !readChordLine(line, opts)?.items) {
+    if (i === firstContent && HEADER_RE.test(trimmed) && !chordLineAt(i)?.items) {
       const [, artist, title] = HEADER_RE.exec(trimmed);
       Object.assign(meta, { artist, title });
       continue;
@@ -329,7 +315,7 @@ export function parseSong(text) {
     if ((m = KEY_RE.exec(line))) { meta.siteKey = parseKey(m[1]); continue; }
     if ((m = CAPO_RE.exec(line))) { meta.capo = Number(m[1]); continue; }
 
-    const chordLine = readChordLine(line, opts);
+    const chordLine = chordLineAt(i);
 
     // Diagramas ASCII do site: linha de nomes seguida de linhas de grade.
     if (chordLine?.items && GRID_RE.test(lines[i + 1] ?? '')) {
@@ -380,7 +366,7 @@ export function parseSong(text) {
 
     if (chordLine?.items) {
       const next = lines[i + 1];
-      if (!chordLine.label && chordLine.repeat === null && isLyricCandidate(next)) {
+      if (!chordLine.label && chordLine.repeat === null && isLyricCandidate(i + 1)) {
         push({ type: 'chordLyric', line: lineNo, items: chordLine.items, lyric: next, segments: buildSegments(chordLine.items, next) });
         i += 1;
       } else {

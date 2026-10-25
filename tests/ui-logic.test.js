@@ -25,7 +25,7 @@ describe('viewKeys: tom, capo e formas', () => {
 
   it('tom G com capo 2: formas de F', () => {
     const v = viewKeys(song({ currentKey: key('G'), capo: 2 }));
-    expect(formatKey(v.sounding)).toBe('G');
+    expect(v.soundingShift).toBe(7); // de C (escrito) até G (o que soa)
     expect(formatKey(v.shapes)).toBe('F');
     expect(displayChord(parseChord('C'), { shift: v.shift, key: v.shapes })).toBe('F');
   });
