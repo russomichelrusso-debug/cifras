@@ -1,17 +1,11 @@
 // Renderizador por segmentos (celular): acorde preso à sílaba, a linha quebra sem desalinhar.
 
-import { buildSegments } from '../../songs/parser.js';
 import { h } from '../../ui/dom.js';
 import { toWords } from './layout.js';
 
 function chordLyric(block, ctx) {
-  const chordItems = block.items.filter((it) => it.kind === 'chord');
-  // Os segmentos saem na ordem dos acordes; troca o nome pelo item, para o botão saber qual acorde é.
-  let k = 0;
-  const segments = buildSegments(chordItems, block.lyric).map((seg) => ({ text: seg.text, chord: seg.chord === null ? null : chordItems[k++] }));
-
   const line = h('div', { class: 'seg-line' });
-  for (const word of toWords(segments)) {
+  for (const word of toWords(block.segments)) {
     const el = h('span', { class: 'seg-word' });
     for (const piece of word.pieces) {
       el.append(

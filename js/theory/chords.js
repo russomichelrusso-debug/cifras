@@ -117,8 +117,6 @@ export function parseChord(input, { ninth = 'add' } = {}) {
   return chord;
 }
 
-export const isChord = (str) => parseChord(str) !== null;
-
 function tensionsText(list, sep) {
   return list.length ? `(${list.join(sep)})` : '';
 }
@@ -163,8 +161,3 @@ export function simplifyChord(c) {
   const triad = c.triad === 'sus2' || c.triad === 'sus4' || c.triad === '5' ? 'maj' : c.triad;
   return { root: c.root, bass: null, triad, seventh: null, tensions: [] };
 }
-
-const TRIAD_INTERVALS = { maj: [0, 4, 7], min: [0, 3, 7], dim: [0, 3, 6], aug: [0, 4, 8], sus2: [0, 2, 7], sus4: [0, 5, 7], 5: [0, 7] };
-
-/** Intervalos (em semitons, a partir da fundamental) das notas da tríade. */
-export const triadIntervals = (c) => TRIAD_INTERVALS[c.triad];

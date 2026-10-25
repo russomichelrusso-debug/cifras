@@ -1,9 +1,7 @@
 // <select> com os 24 tons.
 
-import { formatKey, transposeKey } from '../theory/transpose.js';
+import { ALL_KEYS, formatKey } from '../theory/transpose.js';
 import { h } from './dom.js';
-
-const ALL_KEYS = ['major', 'minor'].flatMap((mode) => Array.from({ length: 12 }, (_, pc) => transposeKey({ tonic: 'C', mode }, pc)));
 
 export function keySelect({ value, onChange, id }) {
   const group = (mode, label) =>

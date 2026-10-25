@@ -34,19 +34,22 @@ export function renderImporter(container) {
   const artist = h('input', { class: 'input', id: 'imp-artist', autocomplete: 'off' });
   const capo = h('input', { class: 'input input-narrow', id: 'imp-capo', type: 'number', min: '0', max: '11', value: '0', oninput: () => refreshSounding() });
   const soundingNote = h('p', { class: 'muted small' });
-  const keyHolder = h('span');
+  const keyPicker = keySelect({ id: 'imp-key', onChange: (v) => setKey(v, { fromUser: true }) });
+  keyPicker.hidden = true; // aparece quando há um tom (depois de ler o texto)
   const suggestions = h('div', { class: 'row chips', 'aria-label': 'Tons sugeridos' });
   const siteKeyNote = h('p', { class: 'note', hidden: true });
   const warnings = h('ul', { class: 'warnings' });
   const preview = h('div', { class: 'preview-body' });
   const previewSection = h('section', { class: 'preview', hidden: true, 'aria-label': 'Prévia' }, h('h2', { class: 'preview-title' }, 'Prévia'), preview);
 
-  function setKey(k, { fromUser = false } = {}) {
+  // `redraw: false` quando quem chama já vai redesenhar a prévia (a leitura do texto).
+  function setKey(k, { fromUser = false, redraw = true } = {}) {
     key = k;
     if (fromUser) keyTouched = true;
-    keyHolder.replaceChildren(keySelect({ value: key, id: 'imp-key', onChange: (v) => setKey(v, { fromUser: true }) }));
+    keyPicker.value = formatKey(key);
+    keyPicker.hidden = false;
     for (const chip of suggestions.children) chip.classList.toggle('chip-active', chip.dataset.key === formatKey(key));
-    body?.update({ originalKey: key, currentKey: key });
+    if (redraw) body?.update({ originalKey: key, currentKey: key });
     refreshSounding();
   }
 
@@ -73,14 +76,12 @@ export function renderImporter(container) {
     if (meta.title && !title.value) title.value = meta.title;
     if (meta.artist && !artist.value) artist.value = meta.artist;
     if (meta.capo !== null) capo.value = String(meta.capo);
-    refreshSounding();
 
     const ranking = rankKeys(songChords(parsed)).slice(0, 3);
     suggestions.replaceChildren(
       ...ranking.map((r) => h('button', { type: 'button', class: 'chip chip-button', dataset: { key: r.name }, onclick: () => setKey(r.key, { fromUser: true }) }, r.name)),
     );
-    if (!keyTouched || !key) setKey(ranking[0]?.key ?? meta.siteKey ?? { tonic: 'C', mode: 'major' });
-    else setKey(key);
+    setKey(!keyTouched || !key ? (ranking[0]?.key ?? meta.siteKey ?? { tonic: 'C', mode: 'major' }) : key, { redraw: false });
 
     const siteDiffers = meta.siteKey && ranking[0] && formatKey(meta.siteKey) !== ranking[0].name;
     siteKeyNote.hidden = !siteDiffers;
@@ -140,7 +141,7 @@ export function renderImporter(container) {
           textarea,
           field('Título', 'imp-title', title),
           field('Artista', 'imp-artist', artist),
-          h('div', { class: 'row fields-inline' }, field('Tom dos acordes', 'imp-key', keyHolder), field('Capo indicado', 'imp-capo', capo)),
+          h('div', { class: 'row fields-inline' }, field('Tom dos acordes', 'imp-key', keyPicker), field('Capo indicado', 'imp-capo', capo)),
           soundingNote,
           h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Tons mais prováveis'), suggestions),
           siteKeyNote,

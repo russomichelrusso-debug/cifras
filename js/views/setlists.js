@@ -1,14 +1,15 @@
 // Repertórios: lista e edição (nome, ordem, tom e capo de cada música).
 
-import { navigate, setlistHash, setlistSongHash, setlistStageHash } from '../router.js';
+import { SETLISTS_HASH, navigate, setlistHash, setlistSongHash, setlistStageHash } from '../router.js';
 import { addSongs, createSetlist, duplicateSetlist, moveItem, removeItem, updateItem } from '../setlists/model.js';
+import { songSearch } from '../songs/search.js';
 import { deleteSetlist, getSetlist, listSetlists, saveSetlist } from '../storage/setlists.repo.js';
 import { listSongs } from '../storage/songs.repo.js';
 import { formatKey, transposeKey } from '../theory/transpose.js';
 import { openDialog } from '../ui/dialog.js';
+import { notFoundPage } from '../ui/controls.js';
 import { h, icon, toast } from '../ui/dom.js';
 
-const normalize = (s) => (s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' });
 
 async function newSetlist() {
@@ -53,10 +54,7 @@ export async function renderSetlists(container) {
 
 export async function renderSetlist(container, [id]) {
   let setlist = await getSetlist(id);
-  if (!setlist) {
-    container.replaceChildren(h('div', { class: 'page' }, h('p', {}, 'Repertório não encontrado.'), h('a', { class: 'button', href: '#/repertorios' }, 'Voltar aos repertórios')));
-    return;
-  }
+  if (!setlist) return notFoundPage(container, 'Repertório não encontrado.', SETLISTS_HASH, 'Voltar aos repertórios');
   const songs = new Map((await listSongs()).map((s) => [s.id, s]));
   const list = h('ol', { class: 'setlist-items' });
   const startButton = h('a', { class: 'button button-primary' }, icon('play'), 'Começar');
@@ -136,15 +134,14 @@ export async function renderSetlist(container, [id]) {
       toast('A biblioteca está vazia. Importe uma cifra primeiro.', { error: true });
       return;
     }
+    const find = songSearch(all);
     const results = h('ul', { class: 'picker-list' });
     const search = h('input', { class: 'input', type: 'search', placeholder: 'Buscar na biblioteca', 'aria-label': 'Buscar na biblioteca', oninput: () => fill() });
     const counts = () => new Map(setlist.items.reduce((m, it) => m.set(it.songId, (m.get(it.songId) ?? 0) + 1), new Map()));
     function fill() {
-      const q = normalize(search.value);
       const inList = counts();
       results.replaceChildren(
-        ...all
-          .filter((s) => normalize(`${s.title} ${s.artist}`).includes(q))
+        ...find(search.value)
           .map((s) =>
             h(
               'li',
@@ -178,7 +175,7 @@ export async function renderSetlist(container, [id]) {
     if (!window.confirm(`Excluir o repertório "${setlist.name}"? As músicas continuam na biblioteca.`)) return;
     await deleteSetlist(setlist.id);
     toast('Repertório excluído.');
-    navigate('#/repertorios');
+    navigate(SETLISTS_HASH);
   }
 
   container.replaceChildren(
@@ -188,7 +185,7 @@ export async function renderSetlist(container, [id]) {
       h(
         'header',
         { class: 'page-header' },
-        h('a', { class: 'icon-button', href: '#/repertorios', 'aria-label': 'Voltar aos repertórios' }, icon('back')),
+        h('a', { class: 'icon-button', href: SETLISTS_HASH, 'aria-label': 'Voltar aos repertórios' }, icon('back')),
         name,
         h(
           'details',

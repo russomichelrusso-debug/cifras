@@ -7,16 +7,13 @@ import { intervalBetween, transposeChord, transposeKey } from './transpose.js';
  * Como a música deve ser exibida.
  * originalKey e currentKey são tons que soam. Os acordes escritos no texto estão em
  * originalKey - sourceCapo (a cifra pode vir escrita para capo, como "CAPO 1").
- * - sounding: tom real (o que soa), usado na análise
  * - shapes: tom das formas tocadas (tom real - capo escolhido)
  * - shift: semitons dos acordes escritos até as formas exibidas
+ * - soundingShift: semitons dos acordes escritos até o que soa (usado na análise, no tom currentKey)
  */
 export function viewKeys({ originalKey, currentKey, capo = 0, sourceCapo = 0 }) {
-  return {
-    sounding: currentKey,
-    shapes: transposeKey(currentKey, -capo),
-    shift: intervalBetween(originalKey, currentKey) - capo + sourceCapo,
-  };
+  const shift = intervalBetween(originalKey, currentKey) - capo + sourceCapo;
+  return { shapes: transposeKey(currentKey, -capo), shift, soundingShift: shift + capo };
 }
 
 /** Tom dos acordes escritos no texto. */

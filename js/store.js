@@ -1,5 +1,6 @@
 // Estado global simples com pub/sub. Hoje guarda só as configurações.
 
+import { createPatchSaver } from './storage/patchSaver.js';
 import { DEFAULT_SETTINGS, getSettings, saveSettings } from './storage/settings.repo.js';
 
 let settings = { ...DEFAULT_SETTINGS };
@@ -11,9 +12,14 @@ export async function initStore() {
 
 export const getSettingsState = () => settings;
 
+// Grava junto as mudanças seguidas (arrastar o andamento, A+ várias vezes); ao sair ou esconder a página grava na hora.
+const saver = createPatchSaver(() => saveSettings(settings));
+window.addEventListener('pagehide', () => saver.flush());
+document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && saver.flush());
+
 export function updateSettings(patch) {
   settings = { ...settings, ...patch };
-  saveSettings(settings);
+  saver.schedule({});
   listeners.forEach((fn) => fn(settings));
 }
 

@@ -19,6 +19,17 @@ export function stopMetronome() {
   notify();
 }
 
+/** Liga ou desliga o metrônomo do app e avisa quem acompanha o estado. */
+export function toggleMetronome(bpm, beatsPerBar) {
+  try {
+    if (metronome.running) metronome.stop();
+    else metronome.start(bpm, beatsPerBar);
+  } catch (err) {
+    toast(err.message, { error: true });
+  }
+  notify();
+}
+
 /** Painel: andamento, compasso, tap tempo, tocar/parar e luz da batida. */
 export function metronomePanel({ bpm = 80, beatsPerBar = 4, onChange }) {
   let current = { bpm: clampBpm(bpm), beatsPerBar };
@@ -37,13 +48,7 @@ export function metronomePanel({ bpm = 80, beatsPerBar = 4, onChange }) {
   }
 
   function toggle() {
-    try {
-      if (metronome.running) metronome.stop();
-      else metronome.start(current.bpm, current.beatsPerBar);
-    } catch (err) {
-      toast(err.message, { error: true });
-    }
-    notify();
+    toggleMetronome(current.bpm, current.beatsPerBar);
     draw();
   }
 
@@ -80,4 +85,27 @@ export function metronomePanel({ bpm = 80, beatsPerBar = 4, onChange }) {
 export function openMetronomeDialog(opts) {
   const panel = metronomePanel(opts);
   return openDialog({ title: 'Metrônomo', content: panel.element, className: 'metro-dialog', onClose: panel.dispose });
+}
+
+/**
+ * Botão "♩ 80 bpm ●" que abre o painel. `onChange` recebe { bpm, beatsPerBar } a cada mudança.
+ * Retorna { element, toggle, dispose }.
+ */
+export function metronomeButton({ bpm, beatsPerBar, onChange }) {
+  let current = { bpm, beatsPerBar };
+  const label = h('span', {});
+  const refresh = () => {
+    label.textContent = `${current.bpm} bpm${metronome.running ? ' ●' : ''}`;
+  };
+  const off = onMetronomeState(refresh);
+  const element = h('button', { class: 'button button-small', type: 'button', 'aria-label': 'Metrônomo', onclick: () => openMetronomeDialog({
+    ...current,
+    onChange: (v) => {
+      current = v;
+      refresh();
+      onChange(v);
+    },
+  }) }, icon('metronome'), label);
+  refresh();
+  return { element, toggle: () => toggleMetronome(current.bpm, current.beatsPerBar), dispose: off };
 }

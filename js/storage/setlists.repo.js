@@ -1,5 +1,5 @@
 import { removeSong } from '../setlists/model.js';
-import { get, getAll, put, putMany, remove } from './db.js';
+import { get, getAll, put, putMany, remove, update } from './db.js';
 
 export async function listSetlists() {
   const setlists = await getAll('setlists');
@@ -13,6 +13,9 @@ export async function saveSetlist(setlist) {
   await put('setlists', saved);
   return saved;
 }
+
+/** Aplica `fn` ao repertório relido na mesma transação. */
+export const updateSetlist = (id, fn) => update('setlists', id, (setlist) => setlist && { ...fn(setlist), updatedAt: Date.now() });
 
 export const deleteSetlist = (id) => remove('setlists', id);
 

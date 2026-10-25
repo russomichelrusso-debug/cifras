@@ -5,6 +5,7 @@ import { monoWidth, renderMonoBlock } from './monospace.js';
 import { renderSegmentBlock } from './segments.js';
 
 const PHONE_MAX_WIDTH = 600;
+const PHONE_QUERY = globalThis.matchMedia?.(`(max-width: ${PHONE_MAX_WIDTH - 1}px)`);
 
 /**
  * ctx: {
@@ -50,11 +51,11 @@ function renderCommonBlock(block) {
 }
 
 /**
- * Celular: segmentos. Tablet e laptop: monoespaçado, se a linha mais longa couber.
- * `isPhone` vem à parte porque no palco a largura medida é a da coluna, não a da tela.
+ * Celular (pela largura da tela): segmentos. Tablet e laptop: monoespaçado, se a linha mais longa
+ * couber em `containerWidth` (no palco, a largura da coluna).
  */
-export function chooseMode(parsed, { preference = 'auto', containerWidth, charWidth, chordText, isPhone = containerWidth < PHONE_MAX_WIDTH }) {
+export function chooseMode(parsed, { preference = 'auto', containerWidth, charWidth, chordText }) {
   if (preference === 'mono' || preference === 'segments') return preference;
-  if (isPhone) return 'segments';
+  if (PHONE_QUERY?.matches ?? containerWidth < PHONE_MAX_WIDTH) return 'segments';
   return monoWidth(parsed, chordText) * charWidth <= containerWidth ? 'mono' : 'segments';
 }
