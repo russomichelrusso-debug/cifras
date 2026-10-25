@@ -1,5 +1,5 @@
 // Rotas por hash: #/, #/importar, #/musica/:id, #/musica/:id/editar,
-// #/repertorios, #/repertorio/:id, #/repertorio/:id/item/:itemId,
+// #/repertorios, #/repertorio/:id, #/repertorio/:id/item/:itemId, #/afinador,
 // #/palco/musica/:id, #/palco/repertorio/:id/:itemId
 
 const ROUTES = [
@@ -11,6 +11,7 @@ const ROUTES = [
   [/^#\/repertorio\/([^/]+)$/, 'setlist'],
   [/^#\/repertorio\/([^/]+)\/item\/([^/]+)$/, 'setlistSong'],
   [/^#\/configuracoes$/, 'settings'],
+  [/^#\/afinador$/, 'tuner'],
   [/^#\/palco\/musica\/([^/]+)$/, 'stage'],
   [/^#\/palco\/repertorio\/([^/]+)\/([^/]+)$/, 'setlistStage'],
 ];

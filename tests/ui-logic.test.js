@@ -127,6 +127,7 @@ describe('rotas', () => {
     ['#/importar', 'importer', []],
     ['#/musica/abc', 'song', ['abc']],
     ['#/musica/abc/editar', 'editor', ['abc']],
+    ['#/afinador', 'tuner', []],
     ['#/xyz', 'notFound', []],
   ])('%j', (hash, name, params) => {
     expect(matchRoute(hash)).toEqual({ name, params });

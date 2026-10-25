@@ -1,6 +1,6 @@
 # cifras
 
-PWA para consultar e tocar cifras de violão no celular, no tablet e no laptop. Funciona sem servidor: as músicas ficam no próprio aparelho (IndexedDB).
+PWA para consultar e tocar cifras de violão no celular, no tablet e no laptop, com afinador pelo microfone. Funciona sem servidor: as músicas ficam no próprio aparelho (IndexedDB).
 
 ## Rodar localmente
 

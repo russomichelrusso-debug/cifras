@@ -55,6 +55,7 @@ const ICONS = {
   stage: 'M4 4h16v12H4zM8 20h8M12 16v4',
   pause: 'M8 5v14M16 5v14',
   metronome: 'M9 3h6l4 18H5zM12 17l5-10',
+  tuner: 'M9 3v7a3 3 0 0 0 6 0V3M12 13v8M9 21h6',
 };
 
 export function icon(name) {

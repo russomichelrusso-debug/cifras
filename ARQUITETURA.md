@@ -87,24 +87,29 @@ cifras/
 │   │   ├── songs.repo.js
 │   │   ├── setlists.repo.js
 │   │   ├── settings.repo.js
-│   │   └── backup.js       # exportar/importar JSON
+│   │   ├── backup.js       # exportar/importar JSON
+│   │   └── patchSaver.js   # junta mudanças seguidas em uma gravação
 │   ├── audio/
 │   │   ├── context.js      # um AudioContext, liberado no gesto do usuário (iOS)
 │   │   ├── synth.js        # Karplus-Strong e frequências da forma (funções puras)
 │   │   ├── chordPlayer.js  # toca a forma como rasgueado
-│   │   └── metronome.js    # agendamento adiantado, tap tempo
+│   │   ├── metronome.js    # agendamento adiantado, tap tempo
+│   │   ├── pitch.js        # afinador: frequência (YIN), nota, corda mais próxima (funções puras)
+│   │   └── mic.js          # microfone sem filtros de voz, para o afinador
 │   ├── stage/
 │   │   └── paging.js       # páginas em colunas e velocidade da rolagem (funções puras)
 │   ├── ui/
 │   │   ├── dom.js          # h(), ícones, toast (texto sempre via textContent)
 │   │   ├── dialog.js       # <dialog> nativo
 │   │   ├── keySelect.js
+│   │   ├── controls.js     # stepper, A−/A+, página de não encontrado
 │   │   ├── chordDiagram.js # diagrama em SVG
 │   │   └── metronomePanel.js # metrônomo único do app + painel
 │   └── views/
 │       ├── library.js      # lista, busca, exportar/importar backup
 │       ├── song.js         # cifra, transposição, capo, fonte, simplificar; também dentro do repertório
 │       ├── songBody.js     # monta a cifra e escolhe o modo pela largura
+│       ├── songContext.js  # música aberta pela biblioteca ou pelo repertório, e onde salvar tom e capo
 │       ├── render/
 │       │   ├── index.js    # seções e blocos comuns; escolha do modo
 │       │   ├── layout.js   # colunas e palavras, sem DOM (testado)
@@ -116,7 +121,8 @@ cifras/
 │       ├── setlists.js     # lista de repertórios e edição de um repertório
 │       ├── stage.js        # páginas + rolagem, wake lock, tela cheia, atalhos
 │       ├── chordPopup.js   # abre o card do acorde (tela da música e palco)
-│       └── settings.js     # tema, notação, nomes das notas, exibição, instalar, armazenamento
+│       ├── settings.js     # tema, notação, nomes das notas, exibição, instalar, armazenamento
+│       └── tuner.js        # afinador: nota, ponteiro de cents, seis cordas, referência do Lá
 ├── tests/
 │   ├── notes.test.js
 │   ├── chords.test.js
@@ -128,6 +134,7 @@ cifras/
 │   ├── ui-logic.test.js    # viewKeys, layout, backup, modelo, rotas
 │   ├── setlists.test.js
 │   ├── audio.test.js       # síntese, frequências, agendamento do metrônomo
+│   ├── pitch.test.js       # afinador: senoides, harmônicos, corda sintetizada, silêncio e ruído
 │   ├── stage.test.js
 │   └── fixtures/           # trechos de cifras reais coladas de sites
 └── assets/
@@ -179,6 +186,7 @@ O **texto bruto é a fonte da verdade**. O modelo estruturado é derivado na hor
   stageMode: "pages",              // pages | scroll
   stageFontSize: 24,
   metronome: { bpm: 80, beatsPerBar: 4 },
+  tunerA4: 440,                    // referência do afinador (430 a 450 Hz)
   installHintDismissed: false
 }
 ```
@@ -507,8 +515,12 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 | D52 | Atualização só quando o usuário toca em "Atualizar" (sem `skipWaiting` automático) | Trocar o app no meio de uma música no palco seria pior que esperar |
 | D53 | Instalação baixa os arquivos com `cache: 'reload'` | O cache HTTP poderia entregar arquivos velhos à versão nova |
 | D54 | Tela de ajustes com tema, notação, nomes das notas, exibição e instalação | As opções existiam no código sem forma de mudar |
+| D55 | Afinador com detecção YIN própria, sem biblioteca | Poucas linhas, testável sem navegador, resiste aos harmônicos do violão (não pula de oitava) |
+| D56 | Microfone sem cancelamento de eco, supressão de ruído e ganho automático | Esses filtros de chamada de voz distorcem a nota |
+| D57 | Ponteiro na nota cromática; texto de "aperte"/"solte" pela corda solta mais próxima | O músico vê a nota real e, ao mesmo tempo, para onde levar a corda |
+| D58 | Microfone desligado ao sair da tela ou mandar o app para o fundo | O aparelho mostra o microfone em uso; deixá-lo aberto preocupa e gasta bateria |
 
-**Fora da v1:** afinador, OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
+**Fora da v1:** OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
 
 ## 12. Fases de implementação
 
@@ -527,7 +539,10 @@ Páginas e rolagem, wake lock, tela cheia, atalhos, metrônomo, `chordPlayer`, s
 **Fase 5: PWA final** (feita)
 Manifest, Service Worker, ícones, instalação, aviso de nova versão, tela de ajustes e testes sem internet nos três tamanhos.
 
-**Fases futuras:** afinador, OCR, pedal Bluetooth, anotações, sincronização.
+**Fase 6: afinador** (feita)
+Afinador cromático pelo microfone (`#/afinador`, item próprio na navegação): nota e oitava, ponteiro de −50 a +50 cents, corda mais próxima da afinação padrão com "aperte"/"solte", referência do Lá de 430 a 450 Hz salva nos ajustes. Detecção YIN em `pitch.js` (testada com senoides, harmônicos e a corda sintetizada do app), sem dependências.
+
+**Fases futuras:** OCR, pedal Bluetooth, anotações, sincronização.
 
 ## 13. Instrução inicial para o Claude Code
 

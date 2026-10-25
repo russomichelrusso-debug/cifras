@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS = {
   stageMode: 'pages', // pages | scroll
   stageFontSize: 24,
   metronome: { bpm: 80, beatsPerBar: 4 },
+  tunerA4: 440, // referência do afinador (Lá 440 Hz)
   installHintDismissed: false,
 };
 
