@@ -73,6 +73,8 @@ cifras/
 │   ├── chordlib/
 │   │   ├── shapes.json     # formas com variações por acorde
 │   │   └── lookup.js
+│   ├── setlists/
+│   │   └── model.js        # repertório: adicionar, mover, tom/capo por item (funções puras)
 │   ├── songs/
 │   │   ├── parser.js       # texto bruto -> modelo convertido (não persistido)
 │   │   └── model.js        # criação e validação do registro da música
@@ -87,10 +89,11 @@ cifras/
 │   │   └── chordPlayer.js  # Karplus-Strong, toca o acorde em arpejo/rasgueado
 │   ├── ui/
 │   │   ├── dom.js          # h(), ícones, toast (texto sempre via textContent)
+│   │   ├── dialog.js       # <dialog> nativo
 │   │   └── keySelect.js
 │   └── views/
 │       ├── library.js      # lista, busca, exportar/importar backup
-│       ├── song.js         # cifra, transposição, capo, fonte, simplificar
+│       ├── song.js         # cifra, transposição, capo, fonte, simplificar; também dentro do repertório
 │       ├── songBody.js     # monta a cifra e escolhe o modo pela largura
 │       ├── render/
 │       │   ├── index.js    # seções e blocos comuns; escolha do modo
@@ -101,7 +104,7 @@ cifras/
 │       ├── chordDetail.js  # análise completa
 │       ├── editor.js       # textarea sobre o texto bruto
 │       ├── importer.js     # colar / .txt -> prévia com tom sugerido e avisos
-│       ├── setlists.js
+│       ├── setlists.js     # lista de repertórios e edição de um repertório
 │       ├── stage.js        # páginas + rolagem, wake lock, tela cheia, atalhos
 │       ├── metronome.js
 │       └── settings.js
@@ -113,6 +116,7 @@ cifras/
 │   ├── transpose.test.js
 │   ├── parser.test.js
 │   ├── ui-logic.test.js    # viewKeys, layout, backup, modelo, rotas
+│   ├── setlists.test.js
 │   └── fixtures/           # trechos de cifras reais coladas de sites
 └── assets/
     └── icons/
@@ -144,7 +148,9 @@ O **texto bruto é a fonte da verdade**. O modelo estruturado é derivado na hor
   id: "uuid",
   name: "Culto domingo 03/11",
   items: [
-    { songId: "uuid", key: { tonic: "D", mode: "major" }, capo: 2 }  // não altera a música
+    // id próprio: a mesma música pode entrar duas vezes, com tons diferentes.
+    // key é o tom que soa (como currentKey). Não altera a música da biblioteca.
+    { id: "uuid", songId: "uuid", key: { tonic: "D", mode: "major" }, capo: 2 }
   ],
   createdAt, updatedAt
 }
@@ -345,7 +351,12 @@ Abre o card rápido: nome, tipo ("Tríade maior"), função e grau, notas, diagr
 Altera `currentKey` ou `capo` e salva. O texto bruto não muda.
 
 **Repertório**
-Lista ordenada de músicas, cada uma com tom e capo próprios. Abrir a música pelo repertório usa esses valores, sem alterar a música. No palco, dá para avançar para a próxima música do repertório.
+Lista ordenada de músicas, cada uma com tom e capo próprios. Funciona assim:
+
+- **Adicionar:** pelo seletor da tela do repertório ou pelo menu da música ("Adicionar ao repertório"). O item entra com o tom e o capo atuais da música.
+- **Editar:** tom e capo de cada item, subir, descer, tirar, renomear, duplicar (para o culto da semana seguinte) e excluir.
+- **Tocar:** "Começar" abre a primeira música. Tom e capo mudados ali ficam salvos no item, não na música. Embaixo há links para a música anterior e a próxima; no laptop, as setas ← e → também navegam.
+- **Excluir uma música da biblioteca** também a tira dos repertórios.
 
 **Modo palco**
 Tela cheia e Wake Lock. Avanço por páginas (swipe, ou setas e espaço no laptop), com rolagem automática opcional, velocidade por música (`scrollSpeed`) e ajuste ao vivo. Seção atual destacada. Metrônomo opcional com o `bpm` da música.
@@ -396,6 +407,9 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 | D37 | O capo escrito na cifra (`sourceCapo`) é guardado à parte do capo escolhido na tela | Cifras escritas para capo ("CAPO 1" + formas de E) soam em outro tom |
 | D38 | Aviso de instalação só no iPhone/iPad e só na biblioteca | O risco de o navegador apagar os dados é do Safari no iOS; na tela da música o aviso tira espaço da cifra |
 | D39 | Na tela da música, a barra de navegação some no celular e no tablet | Toda a altura vai para a cifra; o botão voltar leva à biblioteca |
+| D40 | Item do repertório tem id próprio | A mesma música pode entrar duas vezes, com tons diferentes |
+| D41 | Excluir música da biblioteca tira a música dos repertórios | Evita itens órfãos; a confirmação avisa |
+| D42 | A tela do repertório atualiza na hora e grava em fila | Cliques rápidos (tom, capo, subir) não se sobrescrevem |
 
 **Fora da v1:** afinador, OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
 
@@ -404,8 +418,8 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 **Fase 1: fatia vertical** (feita)
 `notes`, `chords` (notação BR e americana), `notation`, `transpose`, `parser`, `keyDetect` com testes sobre cifras reais em `tests/fixtures/`. Tela da música com os dois renderizadores, importação por colar e `.txt`, IndexedDB e backup JSON. Biblioteca com busca, transposição, capo, editor e simplificar já entraram aqui.
 
-**Fase 2: repertório**
-Repertórios com tom e capo por música.
+**Fase 2: repertório** (feita)
+Repertórios com tom e capo por música, navegação entre as músicas e duplicação.
 
 **Fase 3: acordes e análise**
 `scales`, `harmony` (testes antes da implementação), `shapes.json` com variações, card rápido, detalhe e layout por aparelho.

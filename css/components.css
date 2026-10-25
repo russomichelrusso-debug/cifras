@@ -678,3 +678,244 @@
 .small {
   font-size: 0.875rem;
 }
+
+/* ---------- Diálogo ---------- */
+
+.dialog {
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(80dvh, 720px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog-header h2 {
+  flex: 1;
+  font-size: 1.1rem;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.dialog-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.list-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-button:hover {
+  background: var(--surface-2);
+}
+
+.picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip-outline {
+  gap: 2px;
+  border: 1px solid var(--accent);
+  background: none;
+}
+
+.chip .icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- Repertório ---------- */
+
+.setlist-name {
+  flex: 1;
+  min-width: 0;
+  border-color: transparent;
+  background: none;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.setlist-name:hover,
+.setlist-name:focus {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.setlist-hint {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+}
+
+.setlist-actions {
+  margin-bottom: var(--space-4);
+}
+
+.setlist-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.setlist-items > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.setlist-items .empty {
+  padding: var(--space-4);
+  color: var(--muted);
+}
+
+.setlist-item {
+  display: grid;
+  grid-template-columns: 2em 1fr;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+}
+
+.setlist-item.is-missing {
+  grid-template-columns: 2em 1fr auto;
+}
+
+.setlist-pos {
+  color: var(--muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.setlist-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.setlist-title:hover .song-item-title {
+  text-decoration: underline;
+}
+
+.setlist-item-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  grid-column: 2;
+}
+
+.stepper-compact .icon-button {
+  width: 36px;
+  height: 36px;
+}
+
+.setlist-move {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.setlist-move .icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@media (min-width: 760px) {
+  .setlist-item {
+    grid-template-columns: 2em 1fr auto;
+  }
+
+  .setlist-item-controls {
+    grid-column: 3;
+    flex-wrap: nowrap;
+  }
+}
+
+/* Música dentro do repertório */
+
+.song-context {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.setlist-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.setlist-nav-link {
+  display: flex;
+  flex-direction: column;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.setlist-nav-link.next {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.setlist-nav-link.is-empty {
+  visibility: hidden;
+}
+
+.setlist-nav-title {
+  overflow: hidden;
+  max-width: 100%;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

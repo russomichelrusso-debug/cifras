@@ -1,10 +1,14 @@
-// Rotas por hash: #/, #/importar, #/musica/:id, #/musica/:id/editar
+// Rotas por hash: #/, #/importar, #/musica/:id, #/musica/:id/editar,
+// #/repertorios, #/repertorio/:id, #/repertorio/:id/item/:itemId
 
 const ROUTES = [
   [/^#?\/?$/, 'library'],
   [/^#\/importar$/, 'importer'],
   [/^#\/musica\/([^/]+)\/editar$/, 'editor'],
   [/^#\/musica\/([^/]+)$/, 'song'],
+  [/^#\/repertorios$/, 'setlists'],
+  [/^#\/repertorio\/([^/]+)$/, 'setlist'],
+  [/^#\/repertorio\/([^/]+)\/item\/([^/]+)$/, 'setlistSong'],
 ];
 
 export function matchRoute(hash) {
@@ -26,3 +30,5 @@ export const navigate = (hash) => {
 };
 
 export const songHash = (id) => `#/musica/${encodeURIComponent(id)}`;
+export const setlistHash = (id) => `#/repertorio/${encodeURIComponent(id)}`;
+export const setlistSongHash = (id, itemId) => `${setlistHash(id)}/item/${encodeURIComponent(itemId)}`;

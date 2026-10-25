@@ -6,20 +6,28 @@ import { h, icon } from './ui/dom.js';
 import { renderEditor } from './views/editor.js';
 import { renderImporter } from './views/importer.js';
 import { renderLibrary } from './views/library.js';
-import { renderSong } from './views/song.js';
+import { renderSetlist, renderSetlists } from './views/setlists.js';
+import { renderSetlistSong, renderSong } from './views/song.js';
 
 const VIEWS = {
   library: renderLibrary,
   importer: renderImporter,
   song: renderSong,
   editor: renderEditor,
+  setlists: renderSetlists,
+  setlist: renderSetlist,
+  setlistSong: renderSetlistSong,
   notFound: (el) => el.replaceChildren(h('div', { class: 'page' }, h('p', {}, 'Página não encontrada.'), h('a', { class: 'button', href: '#/' }, 'Ir para a biblioteca'))),
 };
 
 const NAV = [
   ['library', '#/', 'library', 'Biblioteca'],
+  ['setlists', '#/repertorios', 'list', 'Repertórios'],
   ['importer', '#/importar', 'import', 'Importar'],
 ];
+
+// Qual item da navegação fica marcado em cada rota.
+const NAV_SECTION = { setlists: 'setlists', setlist: 'setlists', setlistSong: 'setlists', importer: 'importer' };
 
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 // iPadOS se apresenta como Mac; o toque denuncia.
@@ -60,7 +68,8 @@ async function main() {
   startRouter(async ({ name, params }) => {
     cleanup?.();
     cleanup = null;
-    navLinks.forEach((a) => a.toggleAttribute('aria-current', a.dataset.route === name || (name !== 'importer' && a.dataset.route === 'library')));
+    const section = NAV_SECTION[name] ?? 'library';
+    navLinks.forEach((a) => a.toggleAttribute('aria-current', a.dataset.route === section));
     document.body.dataset.route = name;
     try {
       cleanup = (await VIEWS[name](view, params)) ?? null;

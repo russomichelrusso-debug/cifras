@@ -1,12 +1,17 @@
 // Tela da música: cifra, transposição, capo, tamanho da fonte, simplificar e modo de exibição.
+// Usada direto da biblioteca (tom e capo salvos na música) e dentro de um repertório
+// (tom e capo salvos no item do repertório, sem mexer na música).
 
-import { navigate } from '../router.js';
+import { navigate, setlistSongHash } from '../router.js';
+import { addSongs, createSetlist, neighbors, updateItem } from '../setlists/model.js';
 import { clampCapo } from '../songs/model.js';
 import { parseSong } from '../songs/parser.js';
+import { getSetlist, listSetlists, removeSongFromSetlists, saveSetlist } from '../storage/setlists.repo.js';
 import { deleteSong, getSong, saveSong } from '../storage/songs.repo.js';
 import { getSettingsState, updateSettings } from '../store.js';
 import { viewKeys } from '../theory/notation.js';
 import { formatKey, intervalBetween, transposeKey } from '../theory/transpose.js';
+import { openDialog } from '../ui/dialog.js';
 import { h, icon, toast } from '../ui/dom.js';
 import { mountSongBody } from './songBody.js';
 
@@ -16,21 +21,31 @@ const LAYOUTS = [
   ['segments', 'Ajustar à tela'],
 ];
 
-export async function renderSong(container, [id]) {
-  let song = await getSong(id);
-  if (!song) {
-    container.replaceChildren(h('div', { class: 'page' }, h('p', {}, 'Música não encontrada.'), h('a', { class: 'button', href: '#/' }, 'Voltar à biblioteca')));
-    return undefined;
-  }
+const notFound = (container, text, href, label) =>
+  container.replaceChildren(h('div', { class: 'page' }, h('p', {}, text), h('a', { class: 'button', href }, label)));
+
+/**
+ * ctx: {
+ *   state: { currentKey, capo },       // tom que soa e capo iniciais
+ *   save(state) -> Promise,            // onde guardar tom e capo
+ *   back: { href, label },
+ *   subtitle?: string,                 // ex.: "Culto domingo · 2 de 5"
+ *   footer?: Node,                     // ex.: anterior / próxima do repertório
+ *   menuItems?: Node[],
+ * }
+ */
+function mountSongPage(container, song, ctx) {
   const settings = getSettingsState();
   const parsed = parseSong(song.source);
+  let state = { ...ctx.state };
   let fontSize = settings.defaultFontSize;
 
+  const view = () => ({ ...song, ...state });
   const bodyEl = h('div', { class: 'song-scroll' });
   const keyLabel = h('span', { class: 'stepper-value', 'aria-live': 'polite' });
   const capoLabel = h('span', { class: 'stepper-value', 'aria-live': 'polite' });
   const shapesNote = h('span', { class: 'shapes-note' });
-  const resetButton = h('button', { class: 'button button-small', type: 'button', onclick: () => setKey(song.originalKey) }, 'Tom original');
+  const resetButton = h('button', { class: 'button button-small', type: 'button', onclick: () => setState({ currentKey: song.originalKey }) }, 'Tom original');
   const simplifyToggle = h('input', { type: 'checkbox', checked: settings.simplifyChords, onchange: () => {
     updateSettings({ simplifyChords: simplifyToggle.checked });
     body.update({ simplify: simplifyToggle.checked });
@@ -48,30 +63,22 @@ export async function renderSong(container, [id]) {
   let saveTimer = null;
   function persist() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
+    saveTimer = setTimeout(() => {
       saveTimer = null;
-      song = await saveSong(song);
+      ctx.save(state);
     }, 400);
   }
 
   function refreshControls() {
-    const keys = viewKeys(song);
-    keyLabel.textContent = formatKey(song.currentKey);
-    capoLabel.textContent = song.capo ? String(song.capo) : '0';
-    shapesNote.textContent = song.capo ? `formas de ${formatKey(keys.shapes)}` : '';
-    resetButton.hidden = intervalBetween(song.originalKey, song.currentKey) === 0;
+    keyLabel.textContent = formatKey(state.currentKey);
+    capoLabel.textContent = String(state.capo);
+    shapesNote.textContent = state.capo ? `formas de ${formatKey(viewKeys(view()).shapes)}` : '';
+    resetButton.hidden = intervalBetween(song.originalKey, state.currentKey) === 0;
   }
 
-  function setKey(key) {
-    song = { ...song, currentKey: key };
-    body.update({ currentKey: key });
-    refreshControls();
-    persist();
-  }
-
-  function setCapo(n) {
-    song = { ...song, capo: clampCapo(n) };
-    body.update({ capo: song.capo });
+  function setState(patch) {
+    state = { ...state, ...patch, capo: clampCapo(patch.capo ?? state.capo) };
+    body.update({ currentKey: state.currentKey, capo: state.capo });
     refreshControls();
     persist();
   }
@@ -92,24 +99,11 @@ export async function renderSong(container, [id]) {
       h('button', { class: 'icon-button', type: 'button', 'aria-label': names[1], onclick: onPlus }, icon('plus')),
     );
 
-  async function remove() {
-    if (!window.confirm(`Excluir "${song.title}"? Isso não pode ser desfeito.`)) return;
-    await deleteSong(song.id);
-    toast('Música excluída.');
-    navigate('#/');
-  }
-
   const menu = h(
     'details',
     { class: 'menu' },
     h('summary', { class: 'icon-button', 'aria-label': 'Mais opções' }, icon('more')),
-    h(
-      'div',
-      { class: 'menu-panel' },
-      h('label', { class: 'menu-row' }, 'Exibição', layoutSelect),
-      h('a', { class: 'menu-row menu-link', href: `#/musica/${encodeURIComponent(song.id)}/editar` }, icon('edit'), 'Editar cifra'),
-      h('button', { class: 'menu-row menu-link danger', type: 'button', onclick: remove }, icon('trash'), 'Excluir música'),
-    ),
+    h('div', { class: 'menu-panel' }, h('label', { class: 'menu-row' }, 'Exibição', layoutSelect), ctx.menuItems ?? []),
   );
 
   container.replaceChildren(
@@ -119,15 +113,21 @@ export async function renderSong(container, [id]) {
       h(
         'header',
         { class: 'song-header' },
-        h('a', { class: 'icon-button', href: '#/', 'aria-label': 'Voltar à biblioteca' }, icon('back')),
-        h('div', { class: 'song-heading' }, h('h1', {}, song.title), song.artist ? h('p', { class: 'muted' }, song.artist) : null),
+        h('a', { class: 'icon-button', href: ctx.back.href, 'aria-label': ctx.back.label }, icon('back')),
+        h(
+          'div',
+          { class: 'song-heading' },
+          ctx.subtitle ? h('p', { class: 'song-context' }, ctx.subtitle) : null,
+          h('h1', {}, song.title),
+          song.artist ? h('p', { class: 'muted' }, song.artist) : null,
+        ),
         menu,
       ),
       h(
         'div',
         { class: 'song-controls' },
-        stepper('Tom', keyLabel, () => setKey(transposeKey(song.currentKey, -1)), () => setKey(transposeKey(song.currentKey, 1)), ['Meio tom abaixo', 'Meio tom acima']),
-        stepper('Capo', capoLabel, () => setCapo(song.capo - 1), () => setCapo(song.capo + 1), ['Diminuir capo', 'Aumentar capo']),
+        stepper('Tom', keyLabel, () => setState({ currentKey: transposeKey(state.currentKey, -1) }), () => setState({ currentKey: transposeKey(state.currentKey, 1) }), ['Meio tom abaixo', 'Meio tom acima']),
+        stepper('Capo', capoLabel, () => setState({ capo: state.capo - 1 }), () => setState({ capo: state.capo + 1 }), ['Diminuir capo', 'Aumentar capo']),
         shapesNote,
         resetButton,
         h('div', { class: 'font-buttons', role: 'group', 'aria-label': 'Tamanho da letra' },
@@ -136,14 +136,15 @@ export async function renderSong(container, [id]) {
         h('label', { class: 'toggle' }, simplifyToggle, 'Simplificar'),
       ),
       bodyEl,
+      ctx.footer ?? null,
     ),
   );
 
   const body = mountSongBody(bodyEl, {
     parsed,
     originalKey: song.originalKey,
-    currentKey: song.currentKey,
-    capo: song.capo,
+    currentKey: state.currentKey,
+    capo: state.capo,
     sourceCapo: song.sourceCapo ?? 0,
     notation: settings.chordNotation,
     simplify: settings.simplifyChords,
@@ -156,7 +157,95 @@ export async function renderSong(container, [id]) {
     body.destroy();
     if (saveTimer) {
       clearTimeout(saveTimer);
-      saveSong(song);
+      ctx.save(state);
     }
+  };
+}
+
+/** Diálogo "Adicionar ao repertório": lista os repertórios e permite criar um novo. */
+async function addToSetlistDialog(song) {
+  const setlists = await listSetlists();
+  const add = async (setlist) => {
+    const saved = await saveSetlist(addSongs(setlist, [song]));
+    dialog.close();
+    toast(`Adicionada a "${saved.name}".`);
+  };
+  const dialog = openDialog({
+    title: 'Adicionar ao repertório',
+    content: h(
+      'div',
+      { class: 'dialog-list' },
+      h('button', { class: 'button button-primary button-block', type: 'button', onclick: () => add(createSetlist()) }, icon('plus'), 'Novo repertório'),
+      setlists.map((s) =>
+        h('button', { class: 'list-button', type: 'button', onclick: () => add(s) }, h('span', {}, s.name), h('span', { class: 'muted small' }, `${s.items.length} músicas`)),
+      ),
+    ),
+  });
+}
+
+export async function renderSong(container, [id]) {
+  const song = await getSong(id);
+  if (!song) return notFound(container, 'Música não encontrada.', '#/', 'Voltar à biblioteca');
+
+  async function remove() {
+    if (!window.confirm(`Excluir "${song.title}"? Ela também sai dos repertórios. Isso não pode ser desfeito.`)) return;
+    await deleteSong(song.id);
+    await removeSongFromSetlists(song.id);
+    toast('Música excluída.');
+    navigate('#/');
+  }
+
+  let latest = song;
+  return mountSongPage(container, song, {
+    state: { currentKey: song.currentKey, capo: song.capo },
+    save: async (state) => {
+      latest = await saveSong({ ...latest, ...state });
+    },
+    back: { href: '#/', label: 'Voltar à biblioteca' },
+    menuItems: [
+      h('button', { class: 'menu-row menu-link', type: 'button', onclick: () => addToSetlistDialog(latest) }, icon('list'), 'Adicionar ao repertório'),
+      h('a', { class: 'menu-row menu-link', href: `#/musica/${encodeURIComponent(song.id)}/editar` }, icon('edit'), 'Editar cifra'),
+      h('button', { class: 'menu-row menu-link danger', type: 'button', onclick: remove }, icon('trash'), 'Excluir música'),
+    ],
+  });
+}
+
+export async function renderSetlistSong(container, [setlistId, itemId]) {
+  let setlist = await getSetlist(setlistId);
+  const item = setlist?.items.find((it) => it.id === itemId);
+  if (!item) return notFound(container, 'Item do repertório não encontrado.', '#/repertorios', 'Voltar aos repertórios');
+  const setlistHref = `#/repertorio/${encodeURIComponent(setlist.id)}`;
+  const song = await getSong(item.songId);
+  if (!song) return notFound(container, 'Esta música foi excluída da biblioteca.', setlistHref, 'Voltar ao repertório');
+
+  const { index, total, prev, next } = neighbors(setlist, itemId);
+  const titles = new Map(await Promise.all([prev, next].filter(Boolean).map(async (it) => [it.id, (await getSong(it.songId))?.title ?? 'Música excluída'])));
+  const navButton = (target, label, className) =>
+    target
+      ? h('a', { class: `setlist-nav-link ${className}`, href: setlistSongHash(setlist.id, target.id) }, h('span', { class: 'muted small' }, label), h('span', { class: 'setlist-nav-title' }, titles.get(target.id)))
+      : h('span', { class: `setlist-nav-link ${className} is-empty` });
+
+  const cleanup = mountSongPage(container, song, {
+    state: { currentKey: item.key, capo: item.capo },
+    save: async (state) => {
+      // Relê para não perder mudanças feitas em outra tela.
+      setlist = (await getSetlist(setlist.id)) ?? setlist;
+      setlist = await saveSetlist(updateItem(setlist, itemId, { key: state.currentKey, capo: state.capo }));
+    },
+    back: { href: setlistHref, label: 'Voltar ao repertório' },
+    subtitle: `${setlist.name} · ${index + 1} de ${total}`,
+    footer: h('nav', { class: 'setlist-nav', 'aria-label': 'Músicas do repertório' }, navButton(prev, '‹ Anterior', 'prev'), navButton(next, 'Próxima ›', 'next')),
+  });
+
+  // No laptop: setas para a música anterior e a próxima.
+  const onKey = (e) => {
+    if (e.target.closest('input, select, textarea') || e.altKey || e.ctrlKey || e.metaKey) return;
+    const target = e.key === 'ArrowRight' ? next : e.key === 'ArrowLeft' ? prev : null;
+    if (target) navigate(setlistSongHash(setlist.id, target.id));
+  };
+  window.addEventListener('keydown', onKey);
+  return () => {
+    window.removeEventListener('keydown', onKey);
+    cleanup();
   };
 }

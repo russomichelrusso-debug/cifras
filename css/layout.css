@@ -52,11 +52,13 @@
 }
 
 /* Na tela da música, a navegação sai do caminho no celular para sobrar espaço para a cifra. */
-body[data-route='song'] .app-nav {
+body[data-route='song'] .app-nav,
+body[data-route='setlistSong'] .app-nav {
   display: none;
 }
 
-body[data-route='song'] .app-content {
+body[data-route='song'] .app-content,
+body[data-route='setlistSong'] .app-content {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -73,7 +75,8 @@ body[data-route='song'] .app-content {
   }
 
   .app-nav,
-  body[data-route='song'] .app-nav {
+  body[data-route='song'] .app-nav,
+  body[data-route='setlistSong'] .app-nav {
     position: sticky;
     top: 0;
     display: flex;
@@ -108,7 +111,8 @@ body[data-route='song'] .app-content {
   }
 
   .app-content,
-  body[data-route='song'] .app-content {
+  body[data-route='song'] .app-content,
+  body[data-route='setlistSong'] .app-content {
     min-width: 0;
     padding-bottom: var(--space-5);
   }
