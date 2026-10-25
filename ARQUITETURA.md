@@ -58,13 +58,13 @@ cifras/
 │   └── components.css
 ├── js/
 │   ├── main.js             # bootstrap: SW, router, store, storage.persist()
-│   ├── router.js           # rotas por hash (#/biblioteca, #/musica/:id, #/repertorio/:id, ...)
+│   ├── router.js           # rotas por hash (#/, #/importar, #/musica/:id, #/musica/:id/editar, ...)
 │   ├── store.js            # estado global com pub/sub
 │   ├── theory/
 │   │   ├── notes.js        # notas, enarmonia, nomes latino e americano
 │   │   ├── intervals.js
 │   │   ├── chords.js       # parse de acorde: notação BR e americana, baixo
-│   │   ├── notation.js     # exibição em notação BR (C7M, Am7(9), G4) e simplificação
+│   │   ├── notation.js     # exibição: tom, capo e formas (viewKeys), notação e simplificação
 │   │   ├── scales.js       # maior, menor natural, harmônica e melódica
 │   │   ├── harmony.js      # campo harmônico, graus, funções, dominantes secundárias,
 │   │   │                   # empréstimo modal, substituições, tabela de caráter e dicas
@@ -75,7 +75,7 @@ cifras/
 │   │   └── lookup.js
 │   ├── songs/
 │   │   ├── parser.js       # texto bruto -> modelo convertido (não persistido)
-│   │   └── importer.js     # colar / .txt -> prévia com avisos e tom inferido
+│   │   └── model.js        # criação e validação do registro da música
 │   ├── storage/
 │   │   ├── db.js           # abertura e migrações
 │   │   ├── songs.repo.js
@@ -85,16 +85,22 @@ cifras/
 │   ├── audio/
 │   │   ├── metronome.js
 │   │   └── chordPlayer.js  # Karplus-Strong, toca o acorde em arpejo/rasgueado
+│   ├── ui/
+│   │   ├── dom.js          # h(), ícones, toast (texto sempre via textContent)
+│   │   └── keySelect.js
 │   └── views/
-│       ├── library.js
-│       ├── song.js         # cifra, transposição, capo
+│       ├── library.js      # lista, busca, exportar/importar backup
+│       ├── song.js         # cifra, transposição, capo, fonte, simplificar
+│       ├── songBody.js     # monta a cifra e escolhe o modo pela largura
 │       ├── render/
+│       │   ├── index.js    # seções e blocos comuns; escolha do modo
+│       │   ├── layout.js   # colunas e palavras, sem DOM (testado)
 │       │   ├── monospace.js
 │       │   └── segments.js
 │       ├── chordCard.js    # card rápido
 │       ├── chordDetail.js  # análise completa
 │       ├── editor.js       # textarea sobre o texto bruto
-│       ├── importer.js
+│       ├── importer.js     # colar / .txt -> prévia com tom sugerido e avisos
 │       ├── setlists.js
 │       ├── stage.js        # páginas + rolagem, wake lock, tela cheia, atalhos
 │       ├── metronome.js
@@ -106,7 +112,8 @@ cifras/
 │   ├── keyDetect.test.js
 │   ├── transpose.test.js
 │   ├── parser.test.js
-│   └── fixtures/           # cifras reais coladas de sites
+│   ├── ui-logic.test.js    # viewKeys, layout, backup, modelo, rotas
+│   └── fixtures/           # trechos de cifras reais coladas de sites
 └── assets/
     └── icons/
 ```
@@ -122,9 +129,10 @@ O **texto bruto é a fonte da verdade**. O modelo estruturado é derivado na hor
   title: "Tudo É Perda",
   artist: "Diego Rodrigues",
   source: "[Verso 1]\nC              G\nTudo é perda, a tua graça é...",  // texto bruto
-  originalKey: { tonic: "C", mode: "major" },  // mode: major | minor
-  currentKey:  { tonic: "C", mode: "major" },  // transposição
-  capo: 0,                                     // casa do capotraste
+  originalKey: { tonic: "C", mode: "major" },  // tom que soa no original; mode: major | minor
+  currentKey:  { tonic: "C", mode: "major" },  // tom que soa agora (transposição)
+  capo: 0,                                     // capo escolhido na tela
+  sourceCapo: 0,                               // capo indicado no texto ("CAPO 1")
   bpm: 72,
   scrollSpeed: null,                           // null = padrão global
   createdAt: 1730000000000,
@@ -149,17 +157,26 @@ O **texto bruto é a fonte da verdade**. O modelo estruturado é derivado na hor
   chordNotation: "br",             // br (C7M, Am7(9), G4) | us (Cmaj7, Am9, Gsus4)
   simplifyChords: false,
   defaultFontSize: 18,
+  layoutMode: "auto",              // auto | mono (colunas fixas) | segments (ajustar à tela)
   stageScrollSpeed: 2,
   showAnalysis: true,
   metronome: { bpm: 80, beatsPerBar: 4 },
-  persistRequested: true,
+  persistRequested: false,
   installHintDismissed: false
 }
 ```
 
 Índices: `songs` por `title` e `updatedAt`; `setlists` por `updatedAt`.
 
-**Som e forma com capo:** o tom real é `currentKey`. As formas exibidas são as do tom `currentKey - capo` (ex.: tom G, capo 2 → formas de F). A análise harmônica sempre usa o tom real.
+**Som e forma com capo:**
+
+- `originalKey` e `currentKey` são tons que **soam**.
+- Os acordes escritos no texto estão em `originalKey - sourceCapo`. Uma cifra com `CAPO 1` e acordes em E soa em F.
+- As formas exibidas estão em `currentKey - capo` (tom G com capo 2 → formas de F).
+- Deslocamento aplicado aos acordes escritos: `(currentKey - originalKey) - capo + sourceCapo` (`viewKeys` em `notation.js`).
+- A análise harmônica sempre usa o tom que soa.
+
+Na importação, o tom escolhido é o dos acordes escritos, e o capo vem do texto. O editor corrige os dois sem perder a transposição nem o capo escolhidos na tela.
 
 ## 6. Parser (texto bruto → modelo convertido)
 
@@ -376,16 +393,19 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 | D34 | Acorde solto no meio da letra é convertido só quando a linha tem um acorde que não pode ser palavra; `A`, `E`, `Am`, `Em` nunca | "A", "E" e "Em" também são palavras |
 | D35 | Diagramas do site como reserva quando o acorde não está na biblioteca | Aproveita a forma que o autor da cifra pensou |
 | D36 | Nome de seção solto seguido de linha vazia vira marcador de repetição nos casos da seção 6 | Em cifras de site, "Chorus" solto quase sempre quer dizer "repita o refrão" |
+| D37 | O capo escrito na cifra (`sourceCapo`) é guardado à parte do capo escolhido na tela | Cifras escritas para capo ("CAPO 1" + formas de E) soam em outro tom |
+| D38 | Aviso de instalação só no iPhone/iPad e só na biblioteca | O risco de o navegador apagar os dados é do Safari no iOS; na tela da música o aviso tira espaço da cifra |
+| D39 | Na tela da música, a barra de navegação some no celular e no tablet | Toda a altura vai para a cifra; o botão voltar leva à biblioteca |
 
 **Fora da v1:** afinador, OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
 
 ## 12. Fases de implementação
 
-**Fase 1: fatia vertical**
-`notes`, `chords` (notação BR e americana), `notation`, `transpose`, `parser`, `keyDetect` com testes sobre cifras reais em `tests/fixtures/`. Tela da música com os dois renderizadores, importação por colar e `.txt`, IndexedDB e backup JSON.
+**Fase 1: fatia vertical** (feita)
+`notes`, `chords` (notação BR e americana), `notation`, `transpose`, `parser`, `keyDetect` com testes sobre cifras reais em `tests/fixtures/`. Tela da música com os dois renderizadores, importação por colar e `.txt`, IndexedDB e backup JSON. Biblioteca com busca, transposição, capo, editor e simplificar já entraram aqui.
 
-**Fase 2: biblioteca, capo e repertório**
-Biblioteca com busca, campo capo, repertórios.
+**Fase 2: repertório**
+Repertórios com tom e capo por música.
 
 **Fase 3: acordes e análise**
 `scales`, `harmony` (testes antes da implementação), `shapes.json` com variações, card rápido, detalhe e layout por aparelho.

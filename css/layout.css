@@ -1,0 +1,120 @@
+/* Estrutura do app nos três aparelhos.
+   Celular e tablet: barra de navegação inferior. Laptop (>= 1024px): barra lateral. */
+
+.app {
+  min-height: 100dvh;
+}
+
+.app-nav {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-around;
+  height: calc(var(--nav-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.app-name {
+  display: none;
+}
+
+.nav-link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 64px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.nav-link[aria-current] {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.app-content {
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + var(--space-4));
+}
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-4);
+  padding-left: max(var(--space-4), env(safe-area-inset-left));
+  padding-right: max(var(--space-4), env(safe-area-inset-right));
+}
+
+/* Na tela da música, a navegação sai do caminho no celular para sobrar espaço para a cifra. */
+body[data-route='song'] .app-nav {
+  display: none;
+}
+
+body[data-route='song'] .app-content {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (min-width: 600px) {
+  .page {
+    padding: var(--space-5);
+  }
+}
+
+@media (min-width: 1024px) {
+  .app {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+  }
+
+  .app-nav,
+  body[data-route='song'] .app-nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: var(--space-1);
+    height: 100dvh;
+    padding: var(--space-5) var(--space-3);
+    border-top: 0;
+    border-right: 1px solid var(--border);
+  }
+
+  .app-name {
+    display: block;
+    padding: 0 var(--space-3) var(--space-4);
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .nav-link {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-small);
+    font-size: 0.95rem;
+  }
+
+  .nav-link[aria-current] {
+    background: var(--accent-soft);
+  }
+
+  .app-content,
+  body[data-route='song'] .app-content {
+    min-width: 0;
+    padding-bottom: var(--space-5);
+  }
+}
+
+/* O aviso de instalação só aparece na biblioteca, para não roubar espaço da cifra. */
+body:not([data-route='library']) .install-hint {
+  display: none;
+}

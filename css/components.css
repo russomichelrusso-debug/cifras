@@ -1,0 +1,680 @@
+/* ---------- Botões e campos ---------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--surface-2);
+}
+
+.button-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.button-primary:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.button-small {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  font-size: 0.875rem;
+}
+
+.button-block {
+  width: 100%;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.icon-button::-webkit-details-marker {
+  display: none;
+}
+
+.icon-button:hover {
+  background: var(--surface-2);
+}
+
+.text-button {
+  font-weight: 600;
+}
+
+.input,
+.select {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.select {
+  width: auto;
+  min-width: 96px;
+}
+
+.input-narrow {
+  width: 88px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field label,
+.field-label {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fields-inline {
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-3);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip-button {
+  min-height: 36px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.chip-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.toggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+/* ---------- Páginas ---------- */
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.page-header h1 {
+  flex: 1;
+}
+
+.page-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+}
+
+.install-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) var(--space-4) 0;
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 0.9rem;
+}
+
+.install-hint p {
+  flex: 1;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + var(--space-4));
+  z-index: 50;
+  max-width: min(480px, calc(100vw - 32px));
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-small);
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: var(--shadow);
+  transform: translateX(-50%);
+  transition: opacity 0.3s;
+}
+
+.toast-error {
+  background: var(--danger);
+  color: #fff;
+}
+
+.toast-out {
+  opacity: 0;
+}
+
+/* ---------- Biblioteca ---------- */
+
+.search {
+  position: relative;
+  margin-bottom: var(--space-3);
+}
+
+.search .icon {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: var(--muted);
+}
+
+.search .input {
+  padding-left: 40px;
+}
+
+.song-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.song-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.song-list .empty {
+  padding: var(--space-4);
+  color: var(--muted);
+}
+
+.song-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 60px;
+  padding: var(--space-3) var(--space-4);
+  color: inherit;
+  text-decoration: none;
+}
+
+.song-item:hover {
+  background: var(--surface-2);
+}
+
+.song-item-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.song-item-title {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-item-artist {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* ---------- Importar e editar ---------- */
+
+.import-grid {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.import-form,
+.page-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.source-input {
+  min-height: 180px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  resize: vertical;
+}
+
+.source-input-tall {
+  min-height: 55vh;
+}
+
+.note {
+  padding: var(--space-3);
+  border-radius: var(--radius-small);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 0.9rem;
+}
+
+.warnings {
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+  color: var(--warning-text);
+  font-size: 0.875rem;
+}
+
+.preview {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.preview-title {
+  margin-bottom: var(--space-3);
+  color: var(--muted);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 900px) {
+  .import-grid {
+    grid-template-columns: minmax(320px, 2fr) 3fr;
+    align-items: start;
+  }
+
+  .preview {
+    position: sticky;
+    top: var(--space-4);
+    max-height: calc(100dvh - 2 * var(--space-4));
+    overflow: auto;
+  }
+}
+
+/* ---------- Tela da música ---------- */
+
+.page-song {
+  max-width: none;
+  padding-top: var(--space-2);
+}
+
+.song-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.song-heading {
+  flex: 1;
+  min-width: 0;
+  padding-top: 6px;
+}
+
+.song-heading h1 {
+  font-size: 1.35rem;
+}
+
+.song-controls {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-2) calc(-1 * var(--space-4)) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+}
+
+.stepper-label {
+  padding-left: var(--space-3);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.stepper-value {
+  min-width: 2.6em;
+  font-weight: 700;
+  text-align: center;
+}
+
+.shapes-note {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.shapes-note:empty {
+  display: none;
+}
+
+.font-buttons {
+  display: inline-flex;
+}
+
+.menu {
+  position: relative;
+}
+
+.menu-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+}
+
+.menu-link {
+  justify-content: flex-start;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: none;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu-link:hover {
+  background: var(--surface-2);
+}
+
+.menu-link.danger {
+  color: var(--danger);
+}
+
+/* Celular: controles numa linha só, com rolagem lateral, para sobrar tela para a cifra. */
+@media (max-width: 599px) {
+  .song-controls {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .song-controls > * {
+    flex: none;
+  }
+
+  .stepper-label {
+    padding-left: var(--space-2);
+  }
+
+  .stepper .icon-button {
+    width: 40px;
+  }
+}
+
+@media (min-width: 600px) {
+  .song-controls {
+    margin-left: calc(-1 * var(--space-5));
+    margin-right: calc(-1 * var(--space-5));
+    padding-left: var(--space-5);
+    padding-right: var(--space-5);
+  }
+}
+
+/* ---------- Corpo da cifra ---------- */
+
+.song-scroll,
+.preview-body {
+  position: relative;
+  min-width: 0;
+}
+
+.song-body {
+  font-size: var(--song-font, 18px);
+  line-height: 1.35;
+}
+
+.mono-probe {
+  position: absolute;
+  visibility: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--song-font, 18px);
+  white-space: pre;
+  pointer-events: none;
+}
+
+.song-section + .song-section {
+  margin-top: 1em;
+}
+
+.section-title {
+  margin: 0 0 0.5em;
+  padding: 0.2em 0.75em;
+  border-radius: var(--radius-small);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gap {
+  height: 0.75em;
+}
+
+.chord {
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--chord);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.chord:hover {
+  background: var(--chord-hover-bg);
+}
+
+.chord-optional {
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.deco,
+.line-label {
+  color: var(--muted);
+}
+
+.line-label {
+  font-weight: 600;
+}
+
+.repeat-badge {
+  display: inline-block;
+  padding: 0 0.4em;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 0.8em;
+  font-weight: 700;
+}
+
+.section-ref {
+  display: inline-block;
+  margin: 0.15em 0;
+  padding: 0.1em 0.7em;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.tab {
+  margin: 0.25em 0;
+  padding: 0.6em 0.8em;
+  border-radius: var(--radius-small);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  line-height: 1.3;
+  overflow-x: auto;
+}
+
+/* Monoespaçado: colunas do texto original. */
+.mode-mono {
+  font-family: var(--font-mono);
+}
+
+.mono-line {
+  white-space: pre;
+}
+
+.mono-pair + .mono-pair {
+  margin-top: 0.15em;
+}
+
+/* Segmentos: palavras quebram juntas, acorde preso à sílaba. */
+.mode-segments .seg-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  column-gap: 0.3em;
+  row-gap: 0.2em;
+  margin: 0.2em 0;
+}
+
+.seg-word {
+  display: inline-flex;
+  align-items: flex-end;
+}
+
+.seg-piece {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.seg-piece.has-chord .chord {
+  align-self: flex-start;
+  margin-right: 0.3em;
+  font-size: 0.9em;
+  line-height: 1.2;
+}
+
+.seg-lyric {
+  white-space: pre;
+}
+
+.seg-chords {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2em 0.8em;
+  margin: 0.2em 0;
+}
+
+.seg-text {
+  margin: 0.2em 0;
+}
+
+.small {
+  font-size: 0.875rem;
+}
