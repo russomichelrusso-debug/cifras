@@ -8,7 +8,10 @@
 //   tensions: ["9", "b9", "#9", "11", "#11", "13", "b13", "b5", "#5"]
 // }
 // Acorde meio-diminuto = triad "dim" + seventh "7".
-// Convenção BR: "9" sem sétima é nona adicionada (C9 = Cadd9). "7+" é sétima maior.
+// "7+" é sétima maior (convenção BR).
+// "9" solto, sem sétima e fora de parênteses ("C9"), é ambíguo: nona adicionada no Brasil,
+// nona com sétima nos EUA. `options.ninth` escolhe ("add", padrão, ou "dominant"), e o acorde
+// recebe `ambiguousNinth: true` para o parser poder conferir com o diagrama do site.
 
 import { parseNote } from './notes.js';
 
@@ -21,7 +24,7 @@ const TOKEN_RE =
 
 const TENSION_ORDER = ['b5', '#5', 'b9', '9', '#9', '11', '#11', 'b13', '13'];
 
-export function parseChord(input) {
+export function parseChord(input, { ninth = 'add' } = {}) {
   if (typeof input !== 'string') return null;
   const str = input.trim();
   const m = CHORD_RE.exec(str);
@@ -37,6 +40,8 @@ export function parseChord(input) {
   const tensions = new Set();
   const addTension = (t) => tensions.add(t);
   let first = true;
+  let depth = 0;
+  let ambiguousNinth = false;
   TOKEN_RE.lastIndex = 0;
   while (TOKEN_RE.lastIndex < suffix.length) {
     const start = TOKEN_RE.lastIndex;
@@ -73,7 +78,16 @@ export function parseChord(input) {
       case '6':
         if (chord.seventh === null) chord.seventh = '6'; else addTension('13');
         break;
-      case '9': case 'add9': addTension('9'); break;
+      case '9':
+        if (depth === 0 && chord.seventh === null) {
+          ambiguousNinth = true;
+          if (ninth === 'dominant') chord.seventh = '7';
+        }
+        addTension('9');
+        break;
+      case 'add9': addTension('9'); break;
+      case '(': depth += 1; break;
+      case ')': depth -= 1; break;
       case '11': case 'add11':
         addTension('11');
         if (tok === '11' && chord.seventh === null && tensions.size === 1) chord.seventh = '7';
@@ -99,6 +113,7 @@ export function parseChord(input) {
     first = false;
   }
   chord.tensions = TENSION_ORDER.filter((t) => tensions.has(t));
+  if (ambiguousNinth) chord.ambiguousNinth = true;
   return chord;
 }
 

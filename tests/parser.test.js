@@ -117,10 +117,27 @@ describe('seções', () => {
     expect(sectionNames(parse('shine-on'))).toEqual(['Instrumental', 'Part IV']);
   });
 
-  it('nome de seção sem conteúdo fica como referência (seção vazia)', () => {
+  it('"Chorus" solto seguido de linha vazia vira marcador de repetição', () => {
+    // Cat's in the Cradle abre seções com dois-pontos ("Bridge:"), então "Chorus" solto é "repita".
     const song = parse('cats-in-the-cradle');
-    const last = song.sections[song.sections.length - 1];
-    expect(last).toEqual({ name: '2nd Chorus', blocks: [] });
+    expect(sectionNames(song)).toEqual([null, 'Bridge']);
+    expect(blocks(song).filter((b) => b.type === 'sectionRef').map((b) => b.name)).toEqual(['Chorus', '2nd Chorus']);
+  });
+
+  it('"(solo)" entre parênteses seguido de linha vazia vira marcador', () => {
+    // Folsom Prison Blues
+    const song = parseSong('  E\nI hear the train\n\n(solo)\n\n  E\nI bet there\'s rich folk');
+    expect(sectionNames(song)).toEqual([null]);
+    expect(blocks(song).map((b) => b.type)).toEqual(['chordLyric', 'blank', 'sectionRef', 'blank', 'chordLyric']);
+  });
+
+  it('nome solto seguido de conteúdo abre seção, mesmo repetido', () => {
+    // "Refrain" (sem dois-pontos) em The Who é seguido direto pelos acordes
+    expect(sectionNames(parse('wont-get-fooled-again'))).toContain('Refrain');
+  });
+
+  it('nome solto abre seção quando a cifra não usa dois-pontos', () => {
+    expect(sectionNames(parse('walk-the-line'))).toEqual(['Intro', 'Verse 2']);
   });
 
   it('rótulo na mesma linha dos acordes não abre seção', () => {
@@ -162,17 +179,30 @@ describe('acordes no meio da letra', () => {
     expect(chordNames(b)).toContain('Bm/F');
   });
 
-  it('"{C}" entre chaves', () => {
-    const b = blocks(parse('jackson')).find((x) => x.type === 'chordLyric');
-    expect(chordNames(b)).toEqual(['C']);
-    expect(b.lyric).toBe("John: I'm goin' to F Jackson, I'm gonna mess a- round");
-    expect(b.items[0].col).toBe(b.lyric.indexOf(' round'));
+  it('"{C}" entre chaves, junto com acorde solto na mesma linha', () => {
+    const b = blocks(parse('jackson')).find((x) => x.line === 7);
+    expect(b.lyric).toBe("John: I'm goin' to Jackson, I'm gonna mess a- round");
+    expect(b.items.map((i) => [i.text, i.col])).toEqual([['F', 19], ['C', 45]]);
   });
 
-  it('acordes soltos sem marcação não são convertidos, só avisados', () => {
+  it('acordes soltos são convertidos quando a linha tem um que não pode ser palavra', () => {
     const song = parse('jackson');
-    expect(song.warnings.filter((w) => w.type === 'bareInlineChord').map((w) => w.text)).toEqual(['C', 'C7', 'F']);
+    const line6 = blocks(song).find((b) => b.line === 6);
+    expect(line6.lyric).toBe("Both: We've been talkin' 'bout Jackson, ever since the fire went out");
+    expect(chordNames(line6)).toEqual(['C7']);
+    expect(chordNames(blocks(song).find((b) => b.line === 8))).toEqual(['F', 'G7', 'C']);
+  });
+
+  it('só letra solta ("Both: C We got") fica como texto, com aviso', () => {
+    const song = parse('jackson');
     expect(blocks(song).find((b) => b.line === 5).type).toBe('text');
+    expect(song.warnings.filter((w) => w.type === 'bareInlineChord')).toEqual([{ line: 5, type: 'bareInlineChord', text: 'C' }]);
+  });
+
+  it('nunca converte "A", "E", "Am" e "Em", que são palavras', () => {
+    const b = blocks(parseSong('E agora C7 Am vem'))[0];
+    expect(chordNames(b)).toEqual(['C7']);
+    expect(b.lyric).toBe('E agora Am vem');
   });
 
   it('texto entre parênteses que não é acorde fica no texto', () => {
@@ -222,5 +252,40 @@ describe('robustez', () => {
     const b = blocks(parseSong('[C]Tudo é [G]perda'))[0];
     expect(b.lyric).toBe('Tudo é perda');
     expect(b.items.map((i) => [i.text, i.col])).toEqual([['C', 0], ['G', 7]]);
+  });
+});
+
+describe('"C9": nona adicionada ou nona com sétima', () => {
+  const ninthOf = (text) => blocks(parseSong(text)).find((b) => b.items).items[0];
+
+  it('E-Chords e sites brasileiros: nona adicionada', () => {
+    const song = parse('wind-cries-mary');
+    expect(song.meta).toMatchObject({ source: 'e-chords', ninth: 'add' });
+    expect(ninthOf('C9\nTudo').chord).toMatchObject({ seventh: null, tensions: ['9'] });
+  });
+
+  it('Ultimate Guitar: nona com sétima', () => {
+    const it = ninthOf('C9\nTudo\n\nultimate-guitar.com');
+    expect(it.chord).toMatchObject({ seventh: '7', tensions: ['9'] });
+  });
+
+  it('cabeçalho "Key:" indica site americano', () => {
+    expect(parseSong('Key: C\n\nC9\nTudo').meta.ninth).toBe('dominant');
+  });
+
+  it('"(9)" entre parênteses nunca é ambíguo', () => {
+    expect(ninthOf('Ultimate-Guitar\nC(9)\nTudo').chord).toMatchObject({ seventh: null });
+  });
+
+  it('o diagrama do site decide: com Sib é C7(9)', () => {
+    // x3233x: Dó, Mi, Sib, Ré
+    const text = 'C9\nTudo\n\n  C9\n  ||||||\n  ||o|||\n  |o|oo|\n  ||||||\n  ||||||\n';
+    expect(ninthOf(text)).toMatchObject({ ninthFrom: 'diagram', chord: { seventh: '7' } });
+  });
+
+  it('o diagrama do site decide: sem Sib é Cadd9', () => {
+    // x3x553 (Wish You Were Here no E-Chords): Dó, Sol, Ré
+    const text = 'Ultimate-Guitar\nC9\nTudo\n\n  C9\n  ||||||\n  ||||||\n  |o||oo\n  ||||||\n  ||oo||\n';
+    expect(ninthOf(text)).toMatchObject({ ninthFrom: 'diagram', chord: { seventh: null } });
   });
 });

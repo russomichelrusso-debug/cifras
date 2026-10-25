@@ -58,6 +58,15 @@ describe('parseChord', () => {
     expect(parseChord(input)).toMatchObject(expected);
   });
 
+  it('"C9" é ambíguo; a convenção escolhe', () => {
+    expect(parseChord('C9')).toMatchObject({ seventh: null, ambiguousNinth: true });
+    expect(parseChord('C9', { ninth: 'dominant' })).toMatchObject({ seventh: '7', tensions: ['9'] });
+    expect(parseChord('Am9', { ninth: 'dominant' })).toMatchObject({ triad: 'min', seventh: '7' });
+    expect(parseChord('C(9)', { ninth: 'dominant' })).toMatchObject({ seventh: null });
+    expect(parseChord('C7(9)').ambiguousNinth).toBeUndefined();
+    expect(parseChord('C6/9').ambiguousNinth).toBeUndefined();
+  });
+
   it.each(['', 'H', 'Cx', 'the', 'And', 'A------', 'C55', 'Hah!', '(2x)'])('rejeita %j', (input) => {
     expect(parseChord(input)).toBeNull();
   });

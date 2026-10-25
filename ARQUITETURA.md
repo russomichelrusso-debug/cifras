@@ -173,6 +173,7 @@ O **texto bruto é a fonte da verdade**. O modelo estruturado é derivado na hor
         { type: "chordsOnly", label: "Intro", chords: ["C", "G", "Am", "F"] },
         { type: "tab", lines: ["E|---0---|", "B|-1-----|"] },   // não é transposto
         { type: "repeat", times: 2 },                           // (2x), Refrão 2x
+        { type: "sectionRef", name: "Refrão" },                 // "Refrão" solto: repita a seção
         { type: "text", text: "(só voz)" }                      // qualquer outra linha
       ]
     }
@@ -200,23 +201,43 @@ Formatos encontrados nas cifras reais (`tests/fixtures/`, trechos de cifras do E
 | Tom do site | `Tom: Em` | vira `meta.siteKey`, só informativo (ver seção 8) |
 | Capotraste no texto | `CAPO 1` | vira `meta.capo` |
 | Seção sublinhada | `Verse:` + `------` | abre seção |
-| Seção sem dois-pontos | `Chorus`, `Verse 1`, `(Part IV)`, `Guitar Solo` | abre seção; se ficar vazia, é uma referência ("repita o refrão") |
+| Seção sem dois-pontos | `Chorus`, `Verse 1`, `(Part IV)`, `Guitar Solo` | abre seção, ou vira marcador `sectionRef` ("repita"); regra abaixo |
 | Rótulo + acordes | `Intro: B7 E`, `SOLO \|: F Eb :\| 3x`, `Part II Gm C F` | bloco `chords` com `label`, sem abrir seção |
 | Rótulo + texto | `TAG: We got married...` | bloco `text` com `label` |
 | Repetição | `(2x)`, `(x4)`, `3x`, `(Repeat 8x)`, `( D G7/D ) (2x)` | `repeat` no bloco |
 | Decoração | `\|:` `:\|` `{:` `:}` `{A` `D}` `A------` `->` | ignorada na análise, preservada na exibição |
 | Acorde opcional | `(F#°7)` | `optional: true`, fora da detecção de tom |
 | Acorde no meio da letra | `My (E) child`, `a-{C} round`, `[C]Tudo é` (ChordPro) | convertido em `chordLyric` |
-| Acorde solto na letra | `went C7 out` | **não** convertido; vira aviso `bareInlineChord` |
+| Acorde solto na letra | `went C7 out`, `to F Jackson` | convertido só se a linha tiver um acorde que não pode ser palavra (`C7`, `Bm`, `F#`) ou um acorde marcado; senão, aviso `bareInlineChord` |
 | Tablatura | `e\|--0--`, `\|-----\|`, `G -4---5--` | bloco `tab` |
 | Formas em números | `668886 -> -> x0888x` | bloco `tab` |
 | Diagramas ASCII | `o\|\|\|oo` com nome acima e casa à esquerda | vão para `diagrams`, fora da cifra |
 | Rodapé e créditos | `E-Chords.com`, `Por:`, `Email:`, `Contribuição:` | removidos |
 
+Nome de seção solto (sem dois-pontos nem colchetes), seguido de linha vazia, vira marcador `sectionRef` ("↻ Refrão") quando:
+
+- está entre parênteses, como `(solo)`; ou
+- já existe uma seção com esse nome; ou
+- a cifra abre seções com dois-pontos em outro lugar (quem escreve `Bridge:` usa `Chorus` solto para dizer "repita").
+
+Nos outros casos, abre seção. Se o nome é seguido direto de conteúdo, sempre abre seção.
+
+Acordes soltos no meio da letra:
+
+- `A`, `E`, `Am` e `Em` nunca são convertidos: são palavras em português ou inglês.
+- Uma linha só com letras soltas (`Both: C We got married`) fica como texto e gera aviso na prévia.
+
+Nona sem sétima (`C9`, `A9`, `D9/F#`):
+
+1. Se o site desenhou o acorde no rodapé, as notas do desenho decidem: com sétima menor é `C7(9)`, sem ela é `C(9)`.
+2. Senão, decide a origem do texto: Ultimate Guitar e outros sites americanos (ou cabeçalho `Key:`) usam nona com sétima; E-Chords, Cifra Club e o padrão usam nona adicionada.
+3. `C(9)` entre parênteses, `Cadd9` e `C7(9)` nunca são ambíguos.
+
+O E-Chords usa a convenção brasileira: o `C9` de Wish You Were Here é desenhado como `x3x553` (Dó, Sol, Ré), sem Si♭.
+
 Limitações conhecidas:
 
-- `Chorus` sozinho antes de uma estrofe nova é ambíguo: pode ser "repita o refrão" ou o início de uma seção. O parser trata como início de seção.
-- Os diagramas do site não diferenciam corda solta de corda abafada (fica `null`).
+- Os diagramas do site não diferenciam corda solta de corda abafada (fica `null`). Uma sétima tocada em corda solta não aparece na conferência da nona.
 
 ## 7. Análise harmônica (regras)
 
@@ -286,6 +307,8 @@ O diagrama mostra:
 - o número do dedo em cada bolinha
 - a pestana
 
+Quando o acorde não está na biblioteca e a cifra importada trouxe o diagrama do site, o app usa o desenho do site como reserva, com aviso de que corda solta e abafada não são diferenciadas.
+
 Acordes com baixo têm forma própria quando cadastrada. Se não houver, usa a forma do acorde sem baixo e indica o baixo em texto. Acordes sem forma cadastrada mostram diagrama vazio com aviso. Com "Simplificar acordes" ligado, o diagrama usa a forma do acorde simplificado.
 
 Escopo inicial: as tríades e tétrades mais usadas em louvor e MPB, além dos acordes com baixo mais comuns (`C/E`, `C/G`, `D/F#`, `G/B`, `A/C#`, `E/G#`, `F/A`).
@@ -347,10 +370,12 @@ Exportar gera um `.json` com músicas, repertórios e configurações. Importar 
 | D28 | Graus minúsculos para acordes menores | Convenção da teoria musical |
 | D29 | Lápis do tom no detalhe muda só a análise | Explora modulação sem alterar a música |
 | D30 | Som do acorde por síntese Karplus-Strong | Soa como corda, sem arquivos de áudio |
-| D31 | `C9` sem sétima é nona adicionada (convenção BR); `C7(9)` é a nona com sétima | Padrão dos sites brasileiros (ponto aberto: sites americanos usam o contrário) |
+| D31 | `C9` sem sétima: o diagrama do site decide; sem diagrama, decide a origem (EUA = nona com sétima, BR = nona adicionada) | Os dois padrões convivem nas cifras coladas |
 | D32 | `7+` é sétima maior (convenção BR) | Idem |
 | D33 | O "Tom:" do site é só informativo; o tom vem dos acordes | O site informa o tom da gravação, não o dos acordes escritos |
-| D34 | Acorde solto no meio da letra gera aviso, não conversão | "A", "E" e "F" também são palavras |
+| D34 | Acorde solto no meio da letra é convertido só quando a linha tem um acorde que não pode ser palavra; `A`, `E`, `Am`, `Em` nunca | "A", "E" e "Em" também são palavras |
+| D35 | Diagramas do site como reserva quando o acorde não está na biblioteca | Aproveita a forma que o autor da cifra pensou |
+| D36 | Nome de seção solto seguido de linha vazia vira marcador de repetição nos casos da seção 6 | Em cifras de site, "Chorus" solto quase sempre quer dizer "repita o refrão" |
 
 **Fora da v1:** afinador, OCR de foto/PDF, anotações (Pencil ou texto), pedal Bluetooth, modo canhoto, modo só letra, estilo próprio para comentários, sincronização em nuvem.
 
